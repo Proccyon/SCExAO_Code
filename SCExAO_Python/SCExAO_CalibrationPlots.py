@@ -1,4 +1,3 @@
-
 #-----Imports-----#
 
 import numpy as np
@@ -6,9 +5,11 @@ import matplotlib.pyplot as plt
 import astropy.io.fits as fits
 from scipy import ndimage, misc
 from datetime import timedelta
+import pickle
 import Methods as Mt
 import SCExAO_Model
 import SCExAO_CalibrationMain
+from SCExAO_CalibrationMain import SCExAO_Calibration
 
 #--/--Imports--/--#
 
@@ -27,7 +28,7 @@ def PlotParamValues(self,LambdaNumber,Model=SCExAO_Model.BB_H,PlotModelCurve=Fal
     plt.ylim(bottom=-100,top=100)
     plt.axhline(y=0,color="black")
 
-    FitDerList = np.linspace(-43*np.pi/180,130*np.pi/180,200)
+    FitDerList = np.linspace(43*np.pi/180,130*np.pi/180,200)
     S_In = np.array([1,0,0,0])       
 
 
@@ -41,16 +42,16 @@ def PlotParamValues(self,LambdaNumber,Model=SCExAO_Model.BB_H,PlotModelCurve=Fal
         if(PlotModelCurve):
             ParamFitValueList = []
             for FitDer in FitDerList:
-                X_Matrix,I_Matrix = Model.MakeParameterMatrix(HwpPlusTarget,HwpMinTarget,FitDer,0,True,True,False)
+                X_Matrix,I_Matrix = Model.MakeParameterMatrix(HwpPlusTarget*np.pi/180,HwpMinTarget*np.pi/180,FitDer,0,True,True,False)
                 X_Out = np.dot(X_Matrix,S_In)[0]
                 I_Out = np.dot(I_Matrix,S_In)[0]
                 X_Norm = X_Out/I_Out
                 ParamFitValueList.append(X_Norm)
         
-            plt.plot(FitDerList*180/np.pi,-1*np.array(ParamFitValueList)*100,color=self.ColorList[i])
+            plt.plot(FitDerList*180/np.pi,np.array(ParamFitValueList)*100,color=self.ColorList[i])
 
     plt.grid(linestyle="--")
-    plt.legend()
+    plt.legend(fontsize=7)
     
 def PlotPolarizationDegree(self,LambdaNumber):
     plt.figure()
@@ -96,14 +97,16 @@ SCExAO_CalibrationMain.SCExAO_Calibration.PlotPolarizationDegree = PlotPolarizat
 
 #-----Main-----#
 
-SCExAO = SCExAO_CalibrationMain.SCExAO_CalibrationObject
-Model = SCExAO_Model.IdealModel
+if __name__ == '__main__':
+    SCExAO = pickle.load(open("C:/Users/Gebruiker/Desktop/BRP/SCExAO/PickleFiles/PickleSCExAOClass.txt","rb"))
 
-for i in range(15):
-    SCExAO.PlotParamValues(i,Model,True)
-#SCExAO.ShowDoubleDifferenceImage(0,0,0,True)
-#SCExAO.PlotPolarizationDegree(2)
-plt.show()
+    Model = SCExAO_Model.IdealModel
+
+    for i in range(1):
+        print(i)
+        SCExAO.PlotParamValues(i,Model,True)
+
+    plt.show()
 
 
 

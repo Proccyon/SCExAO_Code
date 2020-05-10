@@ -70,10 +70,6 @@ class SCExAO_Calibration():
         print("Getting double difference value...")
         self.PolParamValueArray = self.GetDoubleDifferenceValue(self.PolDDImageArray,self.PolDSImageArray)
 
-        print("Storing results...")
-        #pickle.dump(self.PolParamValueArray,open(self.PolParamValueArray_FileName,"wb"))
-        #pickle.dump(self.PolImrArray,open(self.PolImrArray_FileName,"wb"))
-
     def SplitCalibrationImages(self,ImageList):
         '''
         Summary:     
@@ -150,6 +146,8 @@ class SCExAO_Calibration():
         DDImageArray = []
         DSImageArray = []
         ImrArray = []
+        OldThetaImr = 0
+
         for HwpTarget in self.HwpTargetList:
             HwpPlusTarget = HwpTarget[0]
             HwpMinTarget = HwpTarget[1]
@@ -163,7 +161,7 @@ class SCExAO_Calibration():
                             ThetaImr = TotalImrList[i]
                             if(ThetaImr < 0):
                                 ThetaImr += 180
-                            ImrList.append(ThetaImr)
+
                             PlusDifference = ImageListL[j]-ImageListR[j]
                             MinDifference = ImageListL[i]-ImageListR[i]
                             PlusSum = ImageListL[j]+ImageListR[j]
@@ -172,6 +170,19 @@ class SCExAO_Calibration():
                             DSImage = 0.5*(PlusSum + MinSum)
                             DDImageList.append(DDImage)
                             DSImageList.append(DSImage)
+                            ImrList.append(ThetaImr)
+
+                            #There are normally 3 images found per derAngle
+                            #There are only 2 at this specific spot
+                            #Thus fills it up with the previous value so the array has right dimensions
+                            if(ThetaImr == 112.5 and OldThetaImr == 112.5 and HwpPlusTarget == 33.75):
+                                DDImageList.append(OldDDImage)
+                                DSImageList.append(OldDSImage)
+                                ImrList.append(OldThetaImr)
+
+                            OldThetaImr = ThetaImr
+                            OldDDImage = DDImage
+                            OldDSImage = DSImage
                             break
                             
             DDImageArray.append(np.array(DDImageList))
@@ -194,11 +205,14 @@ class SCExAO_Calibration():
             ParamValueArray: Array of normalized stokes parameters over Imr angle.
         '''
 
-        ParamValueArray = []
-        for i in range(len(DDImageArray)):
-            ParamValueArray.append(np.median(DDImageArray[i],axis=(2,3)) / np.median(DSImageArray[i],axis=(2,3)))
+        #ParamValueArray = []
+        #for i in range(len(DDImageArray)):
+        #    ParamValueArray.append(np.median(DDImageArray[i],axis=(2,3)) / np.median(DSImageArray[i],axis=(2,3)))
         
-        return np.array(ParamValueArray)
+        #return np.array(ParamValueArray)
+        return np.median(DDImageArray,axis=(3,4)) / np.median(DSImageArray,axis=(3,4))
+
+
         #for i in range(len(self.ApertureXList)):
         #    ApertureX = self.ApertureXList[i]
         #    ApertureY = self.ApertureYList[i] 
@@ -267,9 +281,9 @@ def ArgMaxNegative(List):
 #-----Parameters-----#
 
 #Path to calibration files
-PolPrefix = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/cal_data_pol_source/CRSA000"
-UnpolPrefix = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/cal_data_unpol_source/CRSA000"
-RotationPath = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/RotationsChanged.txt"
+PolPrefix = "C:/Users/Gebruiker/Desktop/BRP/SCExAO/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/cal_data_pol_source/CRSA000"
+UnpolPrefix = "C:/Users/Gebruiker/Desktop/BRP/SCExAO/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/cal_data_unpol_source/CRSA000"
+RotationPath = "C:/Users/Gebruiker/Desktop/BRP/SCExAO/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/RotationsChanged.txt"
 
 PolNumberList = np.arange(59565,59905)
 UnpolNumberList = np.arange(59559,59565)
@@ -278,19 +292,26 @@ UnpolNumberList = np.arange(59559,59565)
 
 #-----Main-----#
 
-#Get the file with rotations over time
-RotationFile = open(RotationPath, "r")
+if __name__ == '__main__':
+    #Get the file with rotations over time
+    RotationFile = open(RotationPath, "r")
 
-#Get the polarized calibration images
-PolFileList = []
-for PolNumber in PolNumberList:
-    PolPath = PolPrefix + str(PolNumber) + "_cube.fits"
-    PolFile = fits.open(PolPath)
-    PolFileList.append(PolFile)
+    if(True):
+        UnpolFile = fits.open("C:/Users/Gebruiker/Desktop/BRP/SCExAO/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/cal_data_unpol_source/CRSA00059559_cube.fits")
+        Header = UnpolFile[0].header
+        print(repr(Header))
 
-SCExAO_CalibrationObject = SCExAO_Calibration(PolFileList,RotationFile)
-SCExAO_CalibrationObject.RunCalibration(PolFileList,RotationFile)
-pickle.dump(SCExAO_CalibrationObject,open("C:/Users/Gebruiker/Desktop/BRP/SCExAO_Python/PickleFiles/PickleSCExAOClass.txt","wb"))
+    if(False):
+        #Get the polarized calibration images
+        PolFileList = []
+        for PolNumber in PolNumberList:
+            PolPath = PolPrefix + str(PolNumber) + "_cube.fits"
+            PolFile = fits.open(PolPath)
+            PolFileList.append(PolFile)
+
+        SCExAO_CalibrationObject = SCExAO_Calibration(PolFileList,RotationFile)
+        SCExAO_CalibrationObject.RunCalibration(PolFileList,RotationFile)
+        pickle.dump(SCExAO_CalibrationObject,open("C:/Users/Gebruiker/Desktop/BRP/SCExAO/PickleFiles/PickleSCExAOClass.txt","wb"))
 
 #--/--Main--/--#
 
