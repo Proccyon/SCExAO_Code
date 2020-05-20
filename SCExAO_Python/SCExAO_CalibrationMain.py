@@ -25,33 +25,82 @@ import SCExAO_Model
 #-----Class-----#
 
 class SCExAO_Calibration():
-
-    def __init__(self,PolFileList,RotationFile):
-
-        self.ImageAngle = 27 #Angle with which the images seem to be rotated
-        self.LeftX = 34 #Position in pixels of border on the left
-        self.RightX = 166 #position in pixels of border on the right
-        self.BottomY = 34 #Position in pixels of border on the top
-        self.TopY = 166 #Position in pixels of border on the left
-        self.MiddleX = 100 #Position in pixels of line that separates measurements
-        self.PixelOffset = 5
-
-        self.MaxTimeDifference = 5*60
-
-        self.HwpTargetList = [(0,45),(11.25,56.25),(22.5,67.5),(33.75,78.75)]
-
-        self.ColorList = ["blue","lightblue","red","orange"]
-
-        #File names of text files where variables are stored
-        self.PolParamValueArray_FileName = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Python/PickleFiles/PicklePolParamValueArray.txt"
-        self.PolImrArray_FileName = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Python/PickleFiles/PicklePolImrArray.txt"
         
+    '''
+    Summary:     
+        Class contains all information about calibration data.
+    static variables:
+        BottomMiddle: Pixel position of the bottom of the split of calibration image
+        TopMiddle: Pixel position of the top of the split of calibration image
+        CornerLeft: Pixel position of the left corner of the calibration image
+        ApertureCoordList: List of pixel positions of aperture centers
+        ApertureLx: Horizontal length in pixels of apertures
+        ApertureLy: Vertical length in pixels of apertures
+        ApertureAngle: Angle of rotation in radians of the rectangular apertures
+        MaxTimeDifference: If calibration image is taken with TimeDifference > MaxTimeDifference
+            then image is discarded. TimeDifference is time between image taken and last Hwp/imr change.
+        HwpTargetList: List of half-wave plate angle combinations with which to do the double difference
+        ColorList: List of colors with which to plot stokes parameters
+        PolParamValueArray_FileName: Name of text file where PolParamValueArray is stored with pickle
+        PolImrArray_FileName: Name of text file where PolImrAray is stored with pickle
+    
+    local variables:
+        PolImageList: List of all polarized calibration images. Dim = (Wavelength,ImageId,X,Y)
+         PolLambdaList: List of used wavelengths per image. Dim = (ImageId,Wavelength)
+            Since it is the same for each image can be changed to Dim = (Wavelength)
+         PolTimeList: List of times at which polarized images are taken. Times are stored as timedelta's
+            Dim = (N)
+        RotationTimeList: List of times at which Hwp/Imr angles are changed. Times are stored as timedelta's
+            Dim = (RotationId)
+        RotationImrList: List of Imr angles at times in RotationTimeList. Dim = (RotationId)
+        RotationHwpList: List of Imr angles at times in RotationTimeList. Dim = (RotationId)
+        PolImrList: List of Imr angles for each image in PolImageList. Dim = (ImageId)
+        PolHwpList: List of Hwp angles for each image in PolImageList. Dim = (ImageId)
+        PolBadImageList: Boolean list indicating which images have no associated Hwp/imr angle.
+             Dim = (ImageId)
+        PolApertureListL: List of values obtained by taking the median over apertures.
+            Only contains values for left side of image. Dim = (Aperture,ImageId)
+        PolApertureListR: Same as PolApertureListL but for the right side.
+        ApertureImage: boolean image of apertures used. True = within aperture, False = outside aperture.
+            Only used to illustrate apertures.
+        PolDDArray: Array of double difference values. Dim = (HwpCombination,ImrAngle,Aperture,Wavelength)
+        PolDSArray: Array of double sum values. Dim = (HwpCombination,ImrAngle,Aperture,Wavelength)
+        PolParamValueArray: Array of normalized stokes parameters = PolDDArray / PolDSArray
+            
+    '''
 
+    BottomMiddle = np.array([67,157])
+    TopMiddle = np.array([130,41])
+    CornerLeft = np.array([12,128])
+
+    ApertureCoordList = np.array([(34,119),(58,131),(47,95),(72,107),(63,69),(86,81),(78,39),(103,52)])
+    ApertureLx = 20
+    ApertureLy = 20
+    ApertureAngle=27*np.pi/180
+
+    MaxTimeDifference = 5*60
+
+    HwpTargetList = [(0,45),(11.25,56.25),(22.5,67.5),(33.75,78.75)]
+
+    ColorList = ["blue","lightblue","red","orange"]
+
+    PolParamValueArray_FileName = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Python/PickleFiles/PicklePolParamValueArray.txt"
+    PolImrArray_FileName = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Python/PickleFiles/PicklePolImrArray.txt"
+    
+    
+    def __init__(self):
+        pass
+
+        
     def RunCalibration(self,PolFileList,RotationFile):
         '''
         Summary:     
             Runs the whole calibration process. Combines all the methods found below.
+        Input:
+            PolFileList: List of .fit files containing polarized calibration images
+            RotationFile: Text file containing Hwp/Imr angles over time
         '''
+
         print("Reading files...")
         self.PolImageList,self.PolLambdaList,self.PolTimeList = ReadCalibrationFiles(PolFileList)
         self.RotationTimeList,self.RotationImrList,self.RotationHwpList = ReadRotationFile(RotationFile)
@@ -62,13 +111,13 @@ class SCExAO_Calibration():
         self.PolLambdaList = self.PolLambdaList[self.PolBadImageList==False]
 
         print("Splitting calibration images...")
-        self.PolImageListL,self.PolImageListR = self.SplitCalibrationImages(self.PolImageList)
+        self.PolApertureListL,self.PolApertureListR,self.ApertureImage = self.SplitCalibrationImages(self.PolImageList)
 
         print("Creating double difference images...")
-        self.PolDDImageArray,self.PolDSImageArray,self.PolImrArray = self.CreateHwpDoubleDifferenceImges(self.PolHwpList,self.PolImrList,self.PolImageListL,self.PolImageListR)
+        self.PolDDArray,self.PolDSArray,self.PolImrArray = self.CreateHwpDoubleDifferenceImages(self.PolHwpList,self.PolImrList,self.PolApertureListL,self.PolApertureListR)
 
-        print("Getting double difference value...")
-        self.PolParamValueArray = self.GetDoubleDifferenceValue(self.PolDDImageArray,self.PolDSImageArray)
+        self.PolParamValueArray = self.PolDDArray/self.PolDSArray
+        
 
     def SplitCalibrationImages(self,ImageList):
         '''
@@ -82,11 +131,28 @@ class SCExAO_Calibration():
             ImageListR: Similar to ImageList but now only the right part
                 ImageListL and ImageListR have the same dimensions
         '''
-        RotatedImageList = ndimage.rotate(ImageList,self.ImageAngle,reshape=False,axes=(2,3))
 
-        ImageListL = RotatedImageList[:,:,self.BottomY+self.PixelOffset:self.TopY-self.PixelOffset,self.LeftX+self.PixelOffset:self.MiddleX-self.PixelOffset]
-        ImageListR = RotatedImageList[:,:,self.BottomY+self.PixelOffset:self.TopY-self.PixelOffset,self.MiddleX+self.PixelOffset:self.RightX-self.PixelOffset]
-        return ImageListL,ImageListR
+        RollVector = self.CornerLeft-self.BottomMiddle
+        RolledImageList = np.roll(ImageList,RollVector[1],2)
+        RolledImageList = np.roll(RolledImageList,RollVector[0],3)
+
+        LeftApertureList = []
+        RightApertureList = []
+        FirstAperture = True
+
+        for ApertureCoord in self.ApertureCoordList:
+            Aperture = CreateAperture(ImageList[0][0].shape,ApertureCoord[0],ApertureCoord[1],self.ApertureLx,self.ApertureLy,self.ApertureAngle)
+            if(FirstAperture):
+                ApertureImage = Aperture
+            else:
+                ApertureImage = np.inverse(np.inverse(ApertureImage)*np.inverse(Aperture))
+
+            LeftApertureValues = np.median(ImageList[:,:,Aperture],axis=(2))
+            RightApertureValues = np.median(RolledImageList[:,:,Aperture],axis=(2))
+            LeftApertureList.append(LeftApertureValues)
+            RightApertureList.append(RightApertureValues)
+
+        return np.array(LeftApertureList),np.array(RightApertureList), ApertureImage
 
     def GetRotations(self,ImageTimeList):
         '''
@@ -126,7 +192,7 @@ class SCExAO_Calibration():
 
         return np.array(ImageImrList),np.array(ImageHwpList),np.array(BadImageList)
 
-    def CreateHwpDoubleDifferenceImges(self,TotalHwpList,TotalImrList,ImageListL,ImageListR):
+    def CreateHwpDoubleDifferenceImages(self,TotalHwpList,TotalImrList,ApertureListL,ApertureListR):
         '''
         Summary:     
             Creates double difference and sum images by
@@ -162,10 +228,10 @@ class SCExAO_Calibration():
                             if(ThetaImr < 0):
                                 ThetaImr += 180
 
-                            PlusDifference = ImageListL[j]-ImageListR[j]
-                            MinDifference = ImageListL[i]-ImageListR[i]
-                            PlusSum = ImageListL[j]+ImageListR[j]
-                            MinSum = ImageListL[i]+ImageListR[i]
+                            PlusDifference = ApertureListL[:,j,:]-ApertureListR[:,j,:]
+                            MinDifference = ApertureListL[:,i,:]-ApertureListR[:,i,:]
+                            PlusSum = ApertureListL[:,j,:]+ApertureListR[:,j,:]
+                            MinSum = ApertureListL[:,i,:]+ApertureListR[:,i,:]
                             DDImage = 0.5*(PlusDifference - MinDifference) 
                             DSImage = 0.5*(PlusSum + MinSum)
                             DDImageList.append(DDImage)
@@ -190,38 +256,6 @@ class SCExAO_Calibration():
             ImrArray.append(np.array(ImrList))
 
         return np.array(DDImageArray),np.array(DSImageArray),np.array(ImrArray)
-
-    #Uses aperatures to get a single value for the double differance
-    def GetDoubleDifferenceValue(self,DDImageArray,DSImageArray):
-        '''
-        Summary:     
-            Finds normalized parameter values from the double difference
-            and double sum images. Currently just takes the median, should
-            change to taking apertures.
-        Input:
-            DDImageArray: Array containing double difference images.
-            DSImageArray: Array containing double sum images.
-        Output:
-            ParamValueArray: Array of normalized stokes parameters over Imr angle.
-        '''
-
-        #ParamValueArray = []
-        #for i in range(len(DDImageArray)):
-        #    ParamValueArray.append(np.median(DDImageArray[i],axis=(2,3)) / np.median(DSImageArray[i],axis=(2,3)))
-        
-        #return np.array(ParamValueArray)
-        return np.median(DDImageArray,axis=(3,4)) / np.median(DSImageArray,axis=(3,4))
-
-
-        #for i in range(len(self.ApertureXList)):
-        #    ApertureX = self.ApertureXList[i]
-        #    ApertureY = self.ApertureYList[i] 
-        #    Shape = DDImageArray[0][0].shape
-        #    Aperture = CreateAperture(Shape,ApertureX,ApertureY,self.ApertureSize)
-        #    ParamValue = np.median(DDImageArray[:,:,Aperture==1],axis=2) / np.median(DSImageArray[:,:,Aperture==1],axis=2)
-        #    ParamValueArray.append(ParamValue)
-
-        #return np.array(ParamValueArray)
 
 
 #--/--Class--/--#
@@ -276,6 +310,30 @@ def ArgMaxNegative(List):
     List = List*(List<=0) - List*(List>0)*1E6
     return np.argmax(List)
 
+def CreateAperture(Shape,x0,y0,Lx,Ly,Angle=0):
+    '''
+    Summary:     
+        Creates a rectangular aperture array of ones within the rectangle and 0's outside the circle.
+    Input:
+        Shape: Shape of the array
+        x0: x coordinate of aperture centre
+        y0: y coordinate of aperture centre
+        Lx: Horizontal length in pixels
+        Ly: Verical length in pixels
+        Angle: Rotation of the aperture in radians 
+    Output:
+        Aperture: 2d aperture array
+    '''
+    Aperture = np.ones(Shape,dtype=bool)
+    for y in range(Shape[0]):
+        for x in range(Shape[1]):
+            X = (x-x0)*np.cos(Angle)-np.sin(Angle)*(y-y0)
+            Y = (x-x0)*np.sin(Angle)+np.cos(Angle)*(y-y0)
+            if(X >= 0.5*Lx or X<= -0.5*Lx or Y >= 0.5*Ly or Y<= -0.5*Ly ):
+                Aperture[y,x] = False
+    
+    return Aperture
+
 #-/-OtherFunctions-/-#
 
 #-----Parameters-----#
@@ -296,12 +354,15 @@ if __name__ == '__main__':
     #Get the file with rotations over time
     RotationFile = open(RotationPath, "r")
 
-    if(True):
-        UnpolFile = fits.open("C:/Users/Gebruiker/Desktop/BRP/SCExAO/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/cal_data_unpol_source/CRSA00059559_cube.fits")
-        Header = UnpolFile[0].header
-        print(repr(Header))
-
     if(False):
+        UnpolFile = fits.open("C:/Users/Gebruiker/Desktop/BRP/SCExAO/SCExAO_Data/Calibration/cal_data_instrumental_pol_model/cal_data_unpol_source/CRSA00059563_cube.fits")
+        Header = UnpolFile[2].header
+        #print(repr(Header))
+        plt.imshow(UnpolFile[1].data[4],vmin=100,vmax=160)
+        plt.show()
+        #print(np.sum(.shape))
+
+    if(True):
         #Get the polarized calibration images
         PolFileList = []
         for PolNumber in PolNumberList:
@@ -309,8 +370,9 @@ if __name__ == '__main__':
             PolFile = fits.open(PolPath)
             PolFileList.append(PolFile)
 
-        SCExAO_CalibrationObject = SCExAO_Calibration(PolFileList,RotationFile)
+        SCExAO_CalibrationObject = SCExAO_Calibration()
         SCExAO_CalibrationObject.RunCalibration(PolFileList,RotationFile)
+        
         pickle.dump(SCExAO_CalibrationObject,open("C:/Users/Gebruiker/Desktop/BRP/SCExAO/PickleFiles/PickleSCExAOClass.txt","wb"))
 
 #--/--Main--/--#

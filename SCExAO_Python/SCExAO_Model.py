@@ -54,7 +54,7 @@ class MatrixModel():
             where intensity is a float and S_In is the incoming stokes vector.
             Don't take [1],[2] or [3], these are not actually measured.
         '''
-        M_CI = 0.5*Mt.ComMatrix(self.d*D_Sign,0) #Polarizer for double difference
+        M_CI = 0.5*Mt.ComMatrix(D_Sign,0) #Polarizer for double difference
         
         T_DerMin = Mt.RotationMatrix(-(ThetaDer+self.DeltaDer)) #Derotator with rotation
         M_Der = Mt.ComMatrix(self.E_Der,self.R_Der)

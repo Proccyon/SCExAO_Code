@@ -16,42 +16,82 @@ from SCExAO_CalibrationMain import SCExAO_Calibration
 #-----PlotFunctions-----#
 
 def PlotParamValues(self,LambdaNumber,Model=SCExAO_Model.BB_H,PlotModelCurve=False):
-    plt.figure()
-    plt.ylabel("Normalized Stokes parameter (%)")
-    plt.xticks(np.arange(45,135,7.5))
+    
+    fig1 = plt.figure()
+
+    #---MainPlot---#
+
+    frame1=fig1.add_axes((.13,.36,.77,.57))
 
     Lambda = self.PolLambdaList[0][LambdaNumber]
-    plt.title("Stokes parameter vs Imr angle (polarizer)(Lambda="+str(int(Lambda))+"nm")           
-    plt.xlabel("Imr angle(degrees)")
+
+    plt.title("Stokes parameters against derotator angle (polarized source)($\lambda$="+str(int(Lambda))+"nm)") 
+    plt.ylabel("Normalized Stokes parameter (%)")
+
+    frame1.set_xticklabels([]) #Remove x-tic labels for the first frame          
     plt.yticks(np.arange(-120,120,20))
+    plt.xticks(np.arange(45,135,7.5))
+
     plt.xlim(left=44,right=128.5)
     plt.ylim(bottom=-100,top=100)
+
     plt.axhline(y=0,color="black")
 
-    FitDerList = np.linspace(43*np.pi/180,130*np.pi/180,200)
+    ModelDerList = np.linspace(43*np.pi/180,130*np.pi/180,200)
     S_In = np.array([1,0,0,0])       
 
+    #Stokes parameters as predicted by the model
+    ModelParmValueArray = Model.FindParameterArray(ModelDerList,S_In,0,self.HwpTargetList,True,False)
 
     for i in range(len(self.HwpTargetList)):
-        #Plot data
         HwpPlusTarget = self.HwpTargetList[i][0]
         HwpMinTarget = self.HwpTargetList[i][1]
-        ParamValueList = 100*self.PolParamValueArray[i][:,LambdaNumber]
-        plt.scatter(self.PolImrArray[i],ParamValueList,label="HwpPlus = "+str(HwpPlusTarget),zorder=100,color=self.ColorList[i],s=18,edgecolors="black")
+
+        #Loop through apertures
+        for j in range(len(self.PolParamValueArray[0][0])):
+            ParamValueList = 100*self.PolParamValueArray[i,:,j,LambdaNumber]
+            plt.scatter(self.PolImrArray[i],ParamValueList,zorder=100,color=self.ColorList[i],s=18,edgecolors="black")
 
         if(PlotModelCurve):
-            ParamFitValueList = []
-            for FitDer in FitDerList:
-                X_Matrix,I_Matrix = Model.MakeParameterMatrix(HwpPlusTarget*np.pi/180,HwpMinTarget*np.pi/180,FitDer,0,True,True,False)
-                X_Out = np.dot(X_Matrix,S_In)[0]
-                I_Out = np.dot(I_Matrix,S_In)[0]
-                X_Norm = X_Out/I_Out
-                ParamFitValueList.append(X_Norm)
-        
-            plt.plot(FitDerList*180/np.pi,np.array(ParamFitValueList)*100,color=self.ColorList[i])
+            #Plots model curve    
+            plt.plot(ModelDerList*180/np.pi,ModelParmValueArray[i]*100,color=self.ColorList[i],label=r"$\theta^+_{Hwp} = $"+str(HwpPlusTarget))
+
 
     plt.grid(linestyle="--")
-    plt.legend(fontsize=7)
+    legend = plt.legend(fontsize=7,loc=1)
+    legend.set_zorder(200)
+
+    #-/-MainPlot-/-#
+
+    #---ResidualsPlot---#
+    if(PlotModelCurve):
+
+        ResidualModelParmValueArray = 100*Model.FindParameterArray(self.PolImrArray[0]*np.pi/180,S_In,0,self.HwpTargetList,True,False)
+        frame2=fig1.add_axes((.13,.1,.77,.23))
+
+        plt.xticks(np.arange(45,135,7.5))
+        #plt.yticks(np.arange(-5,7,2))
+        plt.locator_params(axis='y', nbins=6)
+
+        plt.xlim(left=44,right=128.5)
+        #plt.ylim(ymin=-5.5,ymax=5.5)
+
+        plt.xlabel("Der angle(degrees)")
+        plt.ylabel("Residuals (%)")
+        
+        plt.axhline(y=0,color="black")
+        
+        for i in range(len(self.HwpTargetList)):
+            #Loop through apertures
+            for j in range(len(self.PolParamValueArray[0][0])):
+                ParamValueList = 100*self.PolParamValueArray[i,:,j,LambdaNumber]
+                ResidualValueList = ParamValueList - ResidualModelParmValueArray[i]
+                plt.scatter(self.PolImrArray[i],ResidualValueList,zorder=100,color=self.ColorList[i],s=13,edgecolors="black",linewidth=1)
+
+        plt.grid(linestyle="--")
+
+    #-/-ResidualsPlot-/-#
+
     
 def PlotPolarizationDegree(self,LambdaNumber):
     plt.figure()
@@ -61,6 +101,7 @@ def PlotPolarizationDegree(self,LambdaNumber):
     Lambda = self.PolLambdaList[0][LambdaNumber]  
     plt.title("Pol degree vs Imr angle (polarizer)(Lambda="+str(int(Lambda))+"nm)")           
     plt.xlabel("Imr angle(degrees)")
+    
     plt.yticks(np.arange(0,100,10))
     plt.xlim(left=44,right=128.5)
     plt.ylim(bottom=0,top=100)
@@ -72,26 +113,11 @@ def PlotPolarizationDegree(self,LambdaNumber):
         
     plt.grid(linestyle="--")
 
-def ShowDoubleDifferenceImage(self,HwpNumber,DerNumber,LambdaNumber,DoSum=False):
-
-    plt.figure()
-    if(DoSum):
-        plt.title("Double sum image")
-        Image = self.PolDSImageArray[HwpNumber][DerNumber][LambdaNumber]
-
-    else:
-        plt.title("Double difference image")
-        Image = self.PolDDImageArray[HwpNumber][DerNumber][LambdaNumber]
-
-    plt.imshow(Image,vmin=np.mean(Image)*0.6,vmax=np.mean(Image)*1.4)
-    plt.colorbar()
-    
 
 #--/--PlotFunctions-----#
 
 #-----SetFunctions-----#
 SCExAO_CalibrationMain.SCExAO_Calibration.PlotParamValues = PlotParamValues
-SCExAO_CalibrationMain.SCExAO_Calibration.ShowDoubleDifferenceImage = ShowDoubleDifferenceImage
 SCExAO_CalibrationMain.SCExAO_Calibration.PlotPolarizationDegree = PlotPolarizationDegree
 #--/--SetFunctions--/--#
 
