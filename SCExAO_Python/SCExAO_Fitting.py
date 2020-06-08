@@ -80,10 +80,12 @@ def MinimizeFunction(FittedParameterList,GuessParameterList,DerList,ParamValueAr
     
     ChiSquared = 0
     for i in range(len(ParamValueArray)):
-        ChiSquared += np.sqrt(np.sum((FittedParamValueArray-ParamValueArray[i])**2))
+        ChiSquared += np.sum((FittedParamValueArray-ParamValueArray[i])**2)
+
+    print(ChiSquared)
     return ChiSquared
 
-def DoFit(Args):
+def DoFit(Args,OptimizeMethod="Nelder-Mead"):
     '''
     Summary:     
         Finds irdis model parameters by fitting the matrix model using the calibration data.
@@ -98,7 +100,7 @@ def DoFit(Args):
 
     GuessParameterList = Args[0]
     DoFitList = Args[6]
-    Results = scipy.optimize.minimize(MinimizeFunction,GuessParameterList[DoFitList],args=Args,method="Nelder-Mead")
+    Results = scipy.optimize.minimize(MinimizeFunction,GuessParameterList[DoFitList],args=Args,method=OptimizeMethod)
     FittedParameterList = Results["x"]
     TotalParameterList = FindTotalParameterList(FittedParameterList,GuessParameterList,DoFitList)
     ChiSquared = MinimizeFunction(FittedParameterList,*Args)
@@ -117,7 +119,7 @@ def PrintParameters(ParameterList):
     print("q_in="+str(ParameterList[8]*100)+"%")
     print("u_in="+str(ParameterList[9]*100)+"%")
 
-def SaveParameters(File,ParameterList):
+def SaveParameters(File,ParameterList,ChiSquared):
     File.write("E_Hwp="+str(ParameterList[0])+"\n")
     File.write("R_Hwp="+str(ParameterList[1])+"\n")
     File.write("Delta_Hwp="+str(ParameterList[2])+"\n")
@@ -127,15 +129,17 @@ def SaveParameters(File,ParameterList):
     File.write("d="+str(ParameterList[6])+"\n")
     File.write("DeltaCal="+str(ParameterList[7])+"\n")
     File.write("q_in="+str(ParameterList[8]*100)+"%\n")
-    File.write("u_in="+str(ParameterList[9]*100)+"%")
+    File.write("u_in="+str(ParameterList[9]*100)+"%\n")
+    File.write("ChiSquared="+str(ChiSquared))
 
 def ProcessLine(Line):
     Line = Line.replace("\n","")
     Line = Line.split("=")[1]
     return Line
 
-def PlotModelParameter(ParameterList,WavelengthList,ParameterName,Unit="",Title="",SavePlot=False,SaveParameterName=""):
-    plt.figure()
+def PlotModelParameter(ParameterList,WavelengthList,ParameterName,Unit="",Title="",SavePlot=False,SaveParameterName="",ymin=None,ymax=None,NewFigure=True):
+    if(NewFigure):
+        plt.figure()
 
     if(Title==""):
         plt.title("Fitted "+ParameterName+" over wavelength")
@@ -146,17 +150,25 @@ def PlotModelParameter(ParameterList,WavelengthList,ParameterName,Unit="",Title=
     plt.ylabel(ParameterName+Unit)
 
     plt.xlim(xmin=np.amin(WavelengthList)-50,xmax=np.amax(WavelengthList)+50)
+    if(not ymin==None and not ymax==None):
+        plt.ylim(ymin,ymax)
 
     plt.scatter(WavelengthList,ParameterList,color="black",s=20,zorder=100)
 
     plt.grid(linestyle="--")
 
     if(SavePlot):
-        plt.savefig(CreateModelPlotPath(Prefix,CalibrationNumber,SaveParameterName))
+        plt.savefig(CreateModelPlotPath(Prefix,PlotCalibrationNumber,SaveParameterName))
 
 def CreateFitPlotPath(Prefix,CalibrationNumber,Wavelength):
     return "{}Calibration{}/ModelFits/Fit{}/{}FitPlot{}.png".format(Prefix,CalibrationNumber,Wavelength,Wavelength,CalibrationNumber)
-    
+
+def CreateEffPlotPath(Prefix,CalibrationNumber):
+    return "{}Calibration{}/EffPlot{}.png".format(Prefix,CalibrationNumber,CalibrationNumber)
+
+def CreateMinEffPath(Prefix,CalibrationNumber):
+    return "{}Calibration{}/MinEffPlot{}.png".format(Prefix,CalibrationNumber,CalibrationNumber)
+
 def CreateFitParametersPath(Prefix,CalibrationNumber,Wavelength):
     return "{}Calibration{}/ModelFits/Fit{}/{}FitParameters{}.txt".format(Prefix,CalibrationNumber,Wavelength,Wavelength,CalibrationNumber)
 
@@ -196,11 +208,20 @@ def RetardanceMinimizeFunction(ParameterList,Wavelength,RealRetardance,n1_0,n1_e
     FittedRetardance = CalculateRetardance(Wavelength,d1,d2,n1_0,n1_e,n2_0,n2_e,CrossAxes,SwitchMaterials)
     return np.sqrt(np.sum((FittedRetardance - RealRetardance)**2))
 
-def DoRetardanceFit(RetardanceArgs,GuessParameterList):
+def DoRetardanceFit(RetardanceArgs,GuessParameterList,OptimizeMethod="Nelder-Mead"):
 
-    Results = scipy.optimize.minimize(RetardanceMinimizeFunction,GuessParameterList,args=RetardanceArgs,method="Nelder-Mead")
+    Results = scipy.optimize.minimize(RetardanceMinimizeFunction,GuessParameterList,args=RetardanceArgs,method=OptimizeMethod)
     FittedParameters = Results["x"]
     return FittedParameters
+
+def GetPolyfitY(x,Coefficients):
+    y=np.zeros(x.shape)
+    
+    N = len(Coefficients)
+    for i in range(N):
+        y += Coefficients[i]*(x**(N-i-1))
+    
+    return y
 
 #-/-RetardanceFitFunctions-/-#
 
@@ -213,14 +234,23 @@ if __name__ == '__main__':
 
     #---InputParameters---#
 
-    CalibrationNumber = 5
-    PlotCalibrationNumber = 2
-    Prefix = "C:/Users/Gebruiker/Desktop/BRP/SCExAO/SCExAO_results/PolarizedCalibration/"
+    CalibrationNumber = 3
+    PlotCalibrationNumber = 6
+    Prefix = "C:/Users/Gebruiker/Desktop/BRP/SCExAO/SCExAO_results/PolarizedCalibration2/"
     
     RunFit = False
     PlotModelParameters = False
-    InsertOldOffsets = False
-    RunRetardanceFit = True
+    PlotStokesParameters = False
+    PlotEffDiagram = False
+    RunRetardanceFit = False
+    RunDerotatorFit = True
+
+    InsertOldOffsets = True
+    FitOffsets = False
+    OptimizeMethod = "Powell"
+
+    EfficiencyColors = ["red","green","blue","cyan"]
+    EfficiencyWaveNumbers = [5,10,15,20]
 
     SCExAO_Cal = pickle.load(open("C:/Users/Gebruiker/Desktop/BRP/SCExAO/PickleFiles/PickleSCExAOClass.txt","rb"))
 
@@ -230,7 +260,10 @@ if __name__ == '__main__':
     #GuessParameterList = np.array([0,180,0,0,90,0,1,0,0,0])
     #Bounds = np.array([(-0.1,0.1),(150,210),(-10,10),(-0.1,0.1),(50,180),(-10,10),(0.8,1),(-10,10),(-0.1,0.1),(-0.1,0.1)])
     
-    PolDoFitList = np.array([False,True,False,False,True,False,True,False,False,False])
+    if(FitOffsets):
+        PolDoFitList = np.array([False,True,True,False,True,True,True,True,False,False])
+    else:
+        PolDoFitList = np.array([False,True,False,False,True,True,True,False,False,False])
 
     #-/-InputParameters-/-#
 
@@ -242,21 +275,43 @@ if __name__ == '__main__':
     Delta_Der_List = []
     d_List = []
     Delta_Cal_List = []
+    ChiSquaredList = []
     WavelengthList = SCExAO_Cal.PolLambdaList[0]
+    FittedModelList = []
 
     for i in range(len(WavelengthList)):
         Wavelength = int(WavelengthList[i])
         SaveFile = open(CreateFitParametersPath(Prefix,PlotCalibrationNumber,Wavelength),"r+")
         LineArray = SaveFile.readlines()
         
-        R_Hwp_List.append(float(ProcessLine(LineArray[1])))
-        Delta_Hwp_List.append(float(ProcessLine(LineArray[2])))
-        R_Der_List.append(float(ProcessLine(LineArray[4])))
-        Delta_Der_List.append(float(ProcessLine(LineArray[5])))
-        d_List.append(float(ProcessLine(LineArray[6])))
-        Delta_Cal_List.append(float(ProcessLine(LineArray[7])))
+        R_Hwp = float(ProcessLine(LineArray[1]))
+        Delta_Hwp = float(ProcessLine(LineArray[2]))
+        R_Der = float(ProcessLine(LineArray[4]))
+        Delta_Der = float(ProcessLine(LineArray[5]))
+        d = float(ProcessLine(LineArray[6]))
+        Delta_Cal = float(ProcessLine(LineArray[7]))
+        ChiSquared = float(ProcessLine(LineArray[10]))
+
+        R_Hwp_List.append(R_Hwp)
+        Delta_Hwp_List.append(Delta_Hwp)
+        R_Der_List.append(R_Der)
+        Delta_Der_List.append(Delta_Der)
+        d_List.append(d)
+        Delta_Cal_List.append(Delta_Cal)
+        ChiSquaredList.append(ChiSquared)
+
+        FittedModel=SCExAO_Model.MatrixModel("",0,R_Hwp,Delta_Hwp,0,R_Der,Delta_Der,d,Delta_Cal,0,180)
+        FittedModelList.append(FittedModel)
 
         SaveFile.close()
+
+    R_Hwp_List = np.array(R_Hwp_List)
+    Delta_Hwp_List = np.array(Delta_Hwp_List)
+    R_Der_List = np.array(R_Der_List)
+    Delta_Der_List = np.array(Delta_Der_List)
+    d_List = np.array(d_List)
+    Delta_Cal_List = np.array(Delta_Cal_List)
+    ChiSquaredList = np.array(ChiSquaredList)
 
     #-/-PreviousModelParameters-/-#
 
@@ -264,9 +319,12 @@ if __name__ == '__main__':
 
     if(InsertOldOffsets):
 
-        GuessParameterList[2] = np.average(Delta_Hwp_List)
-        GuessParameterList[5] = np.average(Delta_Der_List)
-        GuessParameterList[7] = np.average(Delta_Cal_List)
+        GuessParameterList[2] = np.average(Delta_Hwp_List[-9:])
+        #GuessParameterList[5] = np.average(Delta_Der_List)
+        GuessParameterList[7] = np.average(Delta_Cal_List[-9:])
+
+        print("AverageDeltaHwp="+str(GuessParameterList[2]))
+        print("AverageDeltaCal="+str(GuessParameterList[7]))
 
     PolParamValueArray = SCExAO_Cal.PolParamValueArray
     
@@ -277,6 +335,7 @@ if __name__ == '__main__':
     PolDerList = SCExAO_Cal.PolImrArray[0]
 
     if(RunFit):
+        ColorIndex=0
         ModelParameterArray = []
         for i in range(0,22):
 
@@ -285,21 +344,19 @@ if __name__ == '__main__':
                 GuessParameterList[4] = 90
 
             PolArgs = (GuessParameterList,PolDerList,ReshapedPolArray[i],True,False,Bounds,PolDoFitList)
-            ModelParameterList,ChiSquared = DoFit(PolArgs)
-            ModelParameterArray.append(ModelParameterList)
-            FittedModel=SCExAO_Model.MatrixModel("",*ModelParameterList[:-2],0,0)
-            SCExAO_Cal.PlotParamValues(i,FittedModel,True)
+            ModelParameterList,ChiSquared = DoFit(PolArgs,OptimizeMethod)
             
+            ModelParameterArray.append(ModelParameterList)
+            #FittedModel=SCExAO_Model.MatrixModel("",*ModelParameterList[:-2],0,0)
+
             Wavelength = int(SCExAO_Cal.PolLambdaList[0][i])
             SaveFile = open(CreateFitParametersPath(Prefix,CalibrationNumber,Wavelength),"w+")
-            #OldString = Prefix+str(Wavelength)+"/"+str(Wavelength)+ParameterFileName+".txt"
-            SaveParameters(SaveFile,ModelParameterList)
+
+            SaveParameters(SaveFile,ModelParameterList,ChiSquared)
             SaveFile.close()
 
-            plt.savefig(CreateFitPlotPath(Prefix,CalibrationNumber,Wavelength))
-            #OldString = Prefix+str(Wavelength)+"/"+str(Wavelength)+PlotFileName+".png"
             print(str(i)+" is Done")
-
+    
     #-/-DoFit-/-#
 
     #---DoModelPlots---#
@@ -312,51 +369,124 @@ if __name__ == '__main__':
         plt.legend()
 
         PlotModelParameter(R_Der_List,WavelengthList,"$\Delta_{der}$","($^{\circ}$)","Fitted derotator retardance over wavelength",True,"R_Der")
-        PlotModelParameter(Delta_Hwp_List,WavelengthList,"$\delta_{Hwp}$","($^{\circ}$)","Fitted Half-wave plate offset over wavelength",True,"Delta_Hwp")
+        PlotModelParameter(Delta_Hwp_List,WavelengthList,"$\delta_{Hwp}$","($^{\circ}$)","Fitted Half-wave plate offset over wavelength",True,"Delta_Hwp",-2,3)
         PlotModelParameter(Delta_Der_List,WavelengthList,"$\delta_{der}$","($^{\circ}$)","Fitted derotator offset over wavelength",True,"Delta_Der")
         PlotModelParameter(d_List,WavelengthList,"d","","Fitted polarizer diattenuation over wavelength",True,"d")
-        PlotModelParameter(Delta_Cal_List,WavelengthList,"$\delta_{Cal}$","","Fitted calibration polarizer offset over wavelength",True,"Delta_Cal")
+        PlotModelParameter(Delta_Cal_List,WavelengthList,"$\delta_{Cal}$","","Fitted calibration polarizer offset over wavelength",True,"Delta_Cal",-2,3)
+        PlotModelParameter(ChiSquaredList,WavelengthList,"$\chi^2$","","Sum of squared residuals of fits over wavelength",True,"ChiSquared")
+
+        plt.figure()
+        plt.ylim(-2,3)
+        plt.scatter(WavelengthList,Delta_Cal_List-2*Delta_Hwp_List)
+
         plt.show()
 
     #-/-DoModelPlots-/-#
 
+    if(PlotStokesParameters):
+        for i in range(22):
+            SCExAO_Cal.PlotParamValues(i,FittedModelList[i],True)
+            plt.savefig(CreateFitPlotPath(Prefix,PlotCalibrationNumber,int(WavelengthList[i])))
 
-if(RunRetardanceFit):
-    #NewWavelength = np.linspace(1000,2500,100)
-    n_0_quartz_function = lambda Wavelength : RefractiveIndexFormula(Wavelength,0,0,1.07044083,1.00585997E-2,1.10202242,100,0.28604141)
-    n_e_quartz_function = lambda Wavelength : RefractiveIndexFormula(Wavelength,0,0,1.09509924,1.02101864E-2,1.15662475,100,0.28851804)
-    n_0_MgF2_function = lambda Wavelength : RefractiveIndexFormula(Wavelength,0.48755108,0.04338408**2,0.39875031,0.09461442**2,2.3120353,23.793604**2,0)
-    n_e_MgF2_function = lambda Wavelength : RefractiveIndexFormula(Wavelength,0.41344023,0.03684262**2,0.50497499,0.09076162**2,2.4904862,23.771995**2,0)
+        plt.show()
 
-    n_0_quartz = n_0_quartz_function(WavelengthList)
-    n_e_quartz = n_e_quartz_function(WavelengthList)
-    n_0_MgF2 = n_0_MgF2_function(WavelengthList)
-    n_e_MgF2 = n_e_MgF2_function(WavelengthList)
+    if(PlotEffDiagram):
+        
+        plt.figure()
+        ColorIndex=0
 
-    ThicknessBounds = [[1E-6,1E-1],[1E-6,1E-1]]
-    ThicknessGuessList = [0.0001,0.0001]
-    CrossAxes = True
-    SwitchMaterials = True
+        for i in range(22):
+            if(i in EfficiencyWaveNumbers):
+                SCExAO_Cal.PlotPolarimetricEfficiency(i,EfficiencyColors[ColorIndex],FittedModelList[i])
+                ColorIndex+=1
 
-    RetardanceArgs = (WavelengthList,R_Hwp_List,n_0_quartz,n_e_quartz,n_0_MgF2,n_e_MgF2,CrossAxes,SwitchMaterials,ThicknessBounds)
+        legend = plt.legend(loc=4,fontsize=7)
+        legend.set_zorder(200)
+        plt.savefig(CreateEffPlotPath(Prefix,PlotCalibrationNumber))
 
-    Fitted_d_quartz,Fitted_d_MgF2 = DoRetardanceFit(RetardanceArgs,ThicknessGuessList)
+        SCExAO_Cal.PlotMinimumEfficiency(FittedModelList)  
+        plt.savefig(CreateMinEffPath(Prefix,PlotCalibrationNumber))
 
-    Wavelength_Wide = np.linspace(1000,2500,400)
+        plt.show()
 
-    n_0_quartz_Wide = n_0_quartz_function(Wavelength_Wide)
-    n_e_quartz_Wide = n_e_quartz_function(Wavelength_Wide)
-    n_0_MgF2_Wide = n_0_MgF2_function(Wavelength_Wide)
-    n_e_MgF2_Wide = n_e_MgF2_function(Wavelength_Wide)
 
-    FittedRetardance = CalculateRetardance(Wavelength_Wide,Fitted_d_quartz,Fitted_d_MgF2,n_0_quartz_Wide,n_e_quartz_Wide,n_0_MgF2_Wide,n_e_MgF2_Wide,CrossAxes,SwitchMaterials)
+    if(RunRetardanceFit):
 
-    PlotModelParameter(R_Hwp_List,WavelengthList,"$\Delta_{Hwp}$","($^{\circ}$)","Fit of quartz and $MgF_2$ plates to measured hwp retardance",True,"R_Hwp")
-    plt.plot(Wavelength_Wide,FittedRetardance,label="Fitted retardance")
-    plt.legend()
-    plt.show()
+        BadIndex = [4,5]
 
-    print("d_quartz="+str(Fitted_d_quartz*1000)+"mm")
-    print("d_MgF2="+str(Fitted_d_MgF2*1000)+"mm")
+        n_0_quartz_function = lambda Wavelength : RefractiveIndexFormula(Wavelength,0,0,1.07044083,1.00585997E-2,1.10202242,100,0.28604141)
+        n_e_quartz_function = lambda Wavelength : RefractiveIndexFormula(Wavelength,0,0,1.09509924,1.02101864E-2,1.15662475,100,0.28851804)
+        n_0_MgF2_function = lambda Wavelength : RefractiveIndexFormula(Wavelength,0.48755108,0.04338408**2,0.39875031,0.09461442**2,2.3120353,23.793604**2,0)
+        n_e_MgF2_function = lambda Wavelength : RefractiveIndexFormula(Wavelength,0.41344023,0.03684262**2,0.50497499,0.09076162**2,2.4904862,23.771995**2,0)
+
+        n_0_quartz = n_0_quartz_function(np.delete(WavelengthList,BadIndex))
+        n_e_quartz = n_e_quartz_function(np.delete(WavelengthList,BadIndex))
+        n_0_MgF2 = n_0_MgF2_function(np.delete(WavelengthList,BadIndex))
+        n_e_MgF2 = n_e_MgF2_function(np.delete(WavelengthList,BadIndex))
+
+        ThicknessBounds = [[1E-6,2E-1],[1E-6,2E-1]]
+        ThicknessGuessList = [1E-3,1E-3]
+        CrossAxes = True
+        SwitchMaterials = True
+        
+        RetardanceArgs = (np.delete(WavelengthList,BadIndex),np.delete(R_Hwp_List,BadIndex)*np.pi/180,n_0_quartz,n_e_quartz,n_0_MgF2,n_e_MgF2,CrossAxes,SwitchMaterials,ThicknessBounds)
+
+        Fitted_d_quartz,Fitted_d_MgF2 = DoRetardanceFit(RetardanceArgs,ThicknessGuessList,OptimizeMethod)
+
+        Wavelength_Wide = np.linspace(1000,2500,400)
+
+        n_0_quartz_Wide = n_0_quartz_function(Wavelength_Wide)
+        n_e_quartz_Wide = n_e_quartz_function(Wavelength_Wide)
+        n_0_MgF2_Wide = n_0_MgF2_function(Wavelength_Wide)
+        n_e_MgF2_Wide = n_e_MgF2_function(Wavelength_Wide)
+
+        FittedRetardance = (180/np.pi)*CalculateRetardance(Wavelength_Wide,Fitted_d_quartz,Fitted_d_MgF2,n_0_quartz_Wide,n_e_quartz_Wide,n_0_MgF2_Wide,n_e_MgF2_Wide,CrossAxes,SwitchMaterials)
+
+        PlotModelParameter(np.delete(R_Hwp_List,BadIndex),np.delete(WavelengthList,BadIndex),"$\Delta_{Hwp}$","($^{\circ}$)","Fit of quartz and $MgF_2$ plates to measured hwp retardance",False,"R_Hwp")
+        plt.plot(Wavelength_Wide,FittedRetardance,label="Fitted retardance")
+        plt.legend()
+        plt.show()
+
+        print("d_quartz="+str(Fitted_d_quartz*1000)+"mm")
+        print("d_MgF2="+str(Fitted_d_MgF2*1000)+"mm")
+
+    if(RunDerotatorFit):
+        
+        fig1 = plt.figure()
+        frame1=fig1.add_axes((.13,.36,.77,.57))
+        frame1.set_xticklabels([])
+
+        PolyfitDegree = 4
+
+        NewWavelengthList = np.delete(WavelengthList,4)
+        New_R_Der_List = np.delete(R_Der_List,4)
+
+        PolyfitCoefficients = np.polyfit(NewWavelengthList,New_R_Der_List,PolyfitDegree)
+
+        Wavelength_Wide = np.linspace(1000,2500,400)
+        R_Der_Fit = GetPolyfitY(Wavelength_Wide,PolyfitCoefficients)
+        
+        PlotModelParameter(New_R_Der_List,NewWavelengthList,"$\Delta_{Der}$","($^{\circ}$)","Polynomial fit(deg="+str(PolyfitDegree)+") on derotator retardance",False,"R_Der",NewFigure=False)
+        plt.scatter(WavelengthList[4],R_Der_List[4],color="red",s=20,label="outliers")
+        plt.plot(Wavelength_Wide,R_Der_Fit,label="Polynomial fit")
+        plt.legend()
+
+        frame2=fig1.add_axes((.13,.1,.77,.23))
+
+        plt.axhline(y=0,color="black")
+        
+        R_Der_Residuals = R_Der_List - GetPolyfitY(WavelengthList,PolyfitCoefficients)
+
+        plt.scatter(np.delete(WavelengthList,4),np.delete(R_Der_Residuals,4),color="black",s=20,zorder=20)
+        plt.scatter(WavelengthList[4],R_Der_Residuals[4],color="red",s=20,zorder=20)
+
+        plt.grid(linestyle="--")
+        plt.yticks(np.arange(-10,15,5))
+        plt.ylim(-11,11)
+        plt.xlabel("λ(nm)")
+        plt.ylabel("Residuals($^{\circ}$)")
+        plt.xlim(xmin=np.amin(WavelengthList)-50,xmax=np.amax(WavelengthList)+50)
+
+        plt.show()
 
 #--/--Main--/--#

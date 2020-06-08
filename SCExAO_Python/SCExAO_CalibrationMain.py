@@ -69,9 +69,11 @@ class SCExAO_Calibration():
             
     '''
 
-    BottomMiddle = np.array([67,157])
-    TopMiddle = np.array([130,41])
-    CornerLeft = np.array([12,128])
+    #BottomMiddle = np.array([67,157])
+    #TopMiddle = np.array([130,41])
+    #CornerLeft = np.array([12,128])
+
+    RollVector = np.array([-60,-31])
 
     ApertureCoordList = np.array([(34,119),(58,131),(47,95),(72,107),(63,69),(86,81),(78,39),(103,52)])
     ApertureLx = 20
@@ -110,6 +112,12 @@ class SCExAO_Calibration():
         self.PolImageList = self.PolImageList[self.PolBadImageList==False]
         self.PolLambdaList = self.PolLambdaList[self.PolBadImageList==False]
 
+        #A = 0
+        #for i in range(len(self.PolHwpList)):
+        #    if(self.PolHwpList[i]==67.5 and self.PolImrList[i]==45):
+        #        A+=1
+        #print(A)
+
         print("Splitting calibration images...")
         self.PolApertureListL,self.PolApertureListR,self.ApertureImage = self.SplitCalibrationImages(self.PolImageList)
 
@@ -132,20 +140,33 @@ class SCExAO_Calibration():
                 ImageListL and ImageListR have the same dimensions
         '''
 
-        RollVector = self.CornerLeft-self.BottomMiddle
-        RolledImageList = np.roll(ImageList,RollVector[1],2)
-        RolledImageList = np.roll(RolledImageList,RollVector[0],3)
+        RolledImageList = np.roll(ImageList,self.RollVector[1],2)
+        RolledImageList = np.roll(RolledImageList,self.RollVector[0],3)
+
+        #plt.figure()
+        #plt.imshow(RolledImageList[0][0]*ImageList[0][0],vmin=500**2,vmax=1800**2)
+
+        #plt.figure()
+        #plt.imshow(RolledImageList[0][0],vmin=500,vmax=1800)
+
+        #plt.figure()
+        #plt.imshow(ImageList[0][0],vmin=500,vmax=1800)
+        #plt.show()
 
         LeftApertureList = []
         RightApertureList = []
         FirstAperture = True
 
         for ApertureCoord in self.ApertureCoordList:
-            Aperture = CreateAperture(ImageList[0][0].shape,ApertureCoord[0],ApertureCoord[1],self.ApertureLx,self.ApertureLy,self.ApertureAngle)
+            Aperture = CreateAperture(ImageList[0][0].shape,ApertureCoord[0],ApertureCoord[1],self.ApertureLx,self.ApertureLy,-self.ApertureAngle)
+            
             if(FirstAperture):
                 ApertureImage = Aperture
+                FirstAperture=False
             else:
-                ApertureImage = np.inverse(np.inverse(ApertureImage)*np.inverse(Aperture))
+                ApertureImage = np.invert(np.invert(ApertureImage)*np.invert(Aperture))
+
+            
 
             LeftApertureValues = np.median(ImageList[:,:,Aperture],axis=(2))
             RightApertureValues = np.median(RolledImageList[:,:,Aperture],axis=(2))
@@ -220,10 +241,12 @@ class SCExAO_Calibration():
             ImrList = []
             DDImageList = []
             DSImageList = []
+            UsedIndexList = [] #Skip images that are already used
             for i in range(len(TotalHwpList)):
                 if(TotalHwpList[i] == HwpMinTarget):
                     for j in range(len(TotalHwpList)):
-                        if(TotalHwpList[j] == HwpPlusTarget and TotalImrList[i] == TotalImrList[j]):
+                        if(TotalHwpList[j] == HwpPlusTarget and TotalImrList[i] == TotalImrList[j] and not j in UsedIndexList):
+                            UsedIndexList.append(j)
                             ThetaImr = TotalImrList[i]
                             if(ThetaImr < 0):
                                 ThetaImr += 180
