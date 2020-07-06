@@ -20,7 +20,7 @@ frame1=fig1.add_axes((.1,.33,.8,.6))
 #xstart, ystart, xend, yend [units are fraction of the image frame, from bottom left corner]
 
 plt.title("Residual showcase")
-plt.ylabel(r"$\theta$")
+plt.ylabel("Chickens")
 plt.plot(x,ydata,'.b') #Noisy data
 plt.plot(x,Fofx(x,*p),'-r') #Best fit model
 frame1.set_xticklabels([]) #Remove x-tic labels for the first frame

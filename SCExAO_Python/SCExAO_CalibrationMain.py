@@ -30,9 +30,7 @@ class SCExAO_Calibration():
     Summary:     
         Class contains all information about calibration data.
     static variables:
-        BottomMiddle: Pixel position of the bottom of the split of calibration image
-        TopMiddle: Pixel position of the top of the split of calibration image
-        CornerLeft: Pixel position of the left corner of the calibration image
+        RollVector: Vector in pixels indicating the difference in position of the left and right side of detector.
         ApertureCoordList: List of pixel positions of aperture centers
         ApertureLx: Horizontal length in pixels of apertures
         ApertureLy: Vertical length in pixels of apertures
@@ -68,10 +66,6 @@ class SCExAO_Calibration():
         PolParamValueArray: Array of normalized stokes parameters = PolDDArray / PolDSArray
             
     '''
-
-    #BottomMiddle = np.array([67,157])
-    #TopMiddle = np.array([130,41])
-    #CornerLeft = np.array([12,128])
 
     RollVector = np.array([-60,-31])
 
@@ -112,12 +106,6 @@ class SCExAO_Calibration():
         self.PolImageList = self.PolImageList[self.PolBadImageList==False]
         self.PolLambdaList = self.PolLambdaList[self.PolBadImageList==False]
 
-        #A = 0
-        #for i in range(len(self.PolHwpList)):
-        #    if(self.PolHwpList[i]==67.5 and self.PolImrList[i]==45):
-        #        A+=1
-        #print(A)
-
         print("Splitting calibration images...")
         self.PolApertureListL,self.PolApertureListR,self.ApertureImage = self.SplitCalibrationImages(self.PolImageList)
 
@@ -142,16 +130,6 @@ class SCExAO_Calibration():
 
         RolledImageList = np.roll(ImageList,self.RollVector[1],2)
         RolledImageList = np.roll(RolledImageList,self.RollVector[0],3)
-
-        #plt.figure()
-        #plt.imshow(RolledImageList[0][0]*ImageList[0][0],vmin=500**2,vmax=1800**2)
-
-        #plt.figure()
-        #plt.imshow(RolledImageList[0][0],vmin=500,vmax=1800)
-
-        #plt.figure()
-        #plt.imshow(ImageList[0][0],vmin=500,vmax=1800)
-        #plt.show()
 
         LeftApertureList = []
         RightApertureList = []

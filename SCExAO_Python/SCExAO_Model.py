@@ -3,7 +3,7 @@
 
 Defines the theoretical mueller matrix model of SCExAO.
 Leaves model parameter values open and fixes the model components.
-Model can determine the the measured light from the incoming light.
+Model can simulate the the measured light from the incoming light.
 Mdoel is also able to do double difference method.
 Some models using IRDIS parameters are included.
 
@@ -20,6 +20,26 @@ import Methods as Mt
 #The optical system of sphere for a specific wavelength
 class MatrixModel():
     
+        '''
+    Summary:     
+        Class containing a mueller matrix model for SCExAO for a specific wavelength.
+    
+    local variables:
+        Name: Name of matrix model. Can include wavelength for example.
+        E_Hwp: Diattenuation of half-wave plate
+        R_Hwp: Retardance of half-wave plate
+        DeltaHwp: Offset angle of half-wave plate
+        E_Der: Diattenuation of image derotator
+        R_Der: Retardance of image derotator
+        DeltaDer: Offset angle of image derotator
+        d: Diattenuation of calibration polarizer
+        DeltaCal: Offset angle of calibration polarizer
+        E_UT: Diattenuation of telescope (not determined)
+        R_UT: Retardance of telescope (not determined)
+        ThetaCal: Rotation of calibration polarizer (set to 45 degrees --> +U polarized light)
+            
+    '''
+
     def __init__(self,Name,E_Hwp,R_Hwp,DeltaHwp,E_Der,R_Der,DeltaDer,d,DeltaCal,E_UT,R_UT,ThetaCal=45):
         self.Name = Name #Name of filter
         self.E_Hwp = E_Hwp #Diattenuation of half-waveplate

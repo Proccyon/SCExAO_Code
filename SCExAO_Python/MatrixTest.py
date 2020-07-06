@@ -1,6 +1,7 @@
 import Methods as Mt
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as ani
 
 def Round(Matrix):
     return np.round(Matrix,5)
@@ -42,7 +43,53 @@ for i in range(len(IP_Q_List)):
 #plt.plot(IP_Q_List,Measured_IP_Min_List)
 #plt.show()
 
-A = np.arange(10)
-print(A[:3:])
 
 
+R_HWP =  170*np.pi/180
+M_HWP_Q1 = Mt.ApplyRotation(Mt.ComMatrix(0,R_HWP),0*np.pi/180)
+M_HWP_Q2 = Mt.ApplyRotation(Mt.ComMatrix(0,R_HWP),45*np.pi/180)
+M_HWP_U1 = Mt.ApplyRotation(Mt.ComMatrix(0,R_HWP),22.5*np.pi/180)
+M_HWP_U2 = Mt.ApplyRotation(Mt.ComMatrix(0,R_HWP),67.5*np.pi/180)
+
+M_HWP_X1 = Mt.ApplyRotation(Mt.ComMatrix(0,R_HWP),11.25*np.pi/180)
+M_HWP_X2 = Mt.ApplyRotation(Mt.ComMatrix(0,R_HWP),56.25*np.pi/180)
+M_HWP_Y1 = Mt.ApplyRotation(Mt.ComMatrix(0,R_HWP),33.75*np.pi/180)
+M_HWP_Y2 = Mt.ApplyRotation(Mt.ComMatrix(0,R_HWP),78.75*np.pi/180)
+
+M_Der1 = Mt.ApplyRotation(Mt.ComMatrix(0,90*np.pi/180),40*np.pi/180)
+M_Der2 = Mt.ApplyRotation(Mt.ComMatrix(0,90*np.pi/180),140*np.pi/180)
+
+M_HWP_Q = M_HWP_Q1-M_HWP_Q2
+M_HWP_U = M_HWP_U1-M_HWP_U2
+M_HWP_X = M_HWP_X1-M_HWP_X2
+M_HWP_Y = M_HWP_Y1-M_HWP_Y2
+
+##print(Round(np.dot(M_HWP_Q,[1,1,0,0])))
+#print(Round(np.dot(M_HWP_U,[1,1,0,0])))
+#print("")
+#print(Round(np.dot(M_HWP_Q,[1,0,1,0])))
+#print(Round(np.dot(M_HWP_U,[1,0,1,0])))
+#print("M_HWP_Q")
+
+#print("M_HWP_U")
+
+#print(Round(np.dot(M_HWP_X,[1,0,1,0])))
+#print(Round(np.dot(M_HWP_Y,[1,0,1,0])))
+#print("")
+#print(Round(np.dot(M_HWP_X,[1,1,0,0])))
+#print(Round(np.dot(M_HWP_Y,[1,1,0,0])))
+
+#print("M_Der_1")
+#print(Round(M_Der1))
+#print("M_Der_2")
+#print(Round(M_Der2))
+#print(Round(np.dot(M_Der1,M_HWP)))
+#print(Round(np.dot(M_Der2,M_HWP)))
+
+Fig1 = plt.figure()
+plt.plot([1,2,3],[3,4,5])
+Fig2 = plt.figure()
+plt.plot([1,2,3],[3,4,6])
+
+Writer = ani.FFMpegWriter(1)
+Writer.setup(Fig1,"C:/Users/Gebruiker/Desktop/BRP/TestMovie.mp4", 300)
