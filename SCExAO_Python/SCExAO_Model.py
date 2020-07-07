@@ -20,7 +20,7 @@ import Methods as Mt
 #The optical system of sphere for a specific wavelength
 class MatrixModel():
     
-        '''
+    '''
     Summary:     
         Class containing a mueller matrix model for SCExAO for a specific wavelength.
     
@@ -210,130 +210,12 @@ class MatrixModel():
         
         return np.array(ParmValueArray)
     
-    #Measures stokes vector for different derotator angles
-    def RunPE_Measurement(self,Steps):
-        '''
-        Old code
-        '''
-        I_Out = []
-        Q_Out = []
-        U_Out = []
-        S_In = np.array([1,0,0,0])
-        ThetaDerList = np.linspace(0,np.pi,Steps) #List of derotator angles
 
-        for ThetaDer in ThetaDerList:
-            TotalMatrix = self.MakeDoubleDifferenceMatrix(ThetaDer,0,True)
-            S_Out = np.dot(TotalMatrix,S_In)
-            I_Out.append(S_Out[0])
-            Q_Out.append(S_Out[1])
-            U_Out.append(S_Out[2])
-
-        return np.array(I_Out),np.array(Q_Out),np.array(U_Out)
-
-        #Measures stokes vector for different derotator angles
-    def RunIP_Measurement(self,Steps):
-        '''
-        Old code
-        '''
-        IOut = []
-        QOut = []
-        UOut = []
-        S_In = np.array([1,0,0,0])
-        AltitudeList = np.linspace(0,0.5*np.pi,Steps) #List of derotator angles
-
-        for Altitude in AltitudeList:
-            TotalMatrix = self.MakeDoubleDifferenceMatrix(0,Altitude,False)
-            S_Out = np.dot(TotalMatrix,S_In)
-            IOut.append(S_Out[0])
-            QOut.append(S_Out[1])
-            UOut.append(S_Out[2])
-
-        return np.array(IOut),np.array(QOut),np.array(UOut)
-
-#--/--Classes--/--#
-
-#-----Methods-----#
-#Plots Polarimetric efficiency vs derotator angle found using setup 1
-def PlotEfficiencyDiagram(ModelList,Steps,PlotStokes=False):
-    '''
-    Old code
-    '''
-    
-    ThetaDerList = np.linspace(0,180,Steps) #List of derotator angles
-
-    plt.figure()
-
-    plt.title("Polarimetric efficiency vs Derotator angle")
-    plt.xlabel("Derotator angle")
-    plt.ylabel("Polarimetric efficiency")
-
-    plt.xlim(left=0,right=180)
-    plt.ylim(bottom=0,top=1.1)
-    plt.xticks(np.arange(0,180,step=22.5))
-    plt.yticks(np.arange(0,1.1,step=0.1))   
-    
-    plt.grid() 
- 
-    for Model in ModelList:
-        I_Out,Q_Out,U_Out = Model.RunPE_Measurement(Steps)
-        PE = np.sqrt(Q_Out**2 + U_Out**2) / I_Out
-        plt.plot(ThetaDerList,PE, label=Model.Name)    
-    
-    plt.legend()
-    
-
-def PlotIpDiagram(ModelList,Steps,PlotStokes=False):
-    '''
-    Old code
-    '''
-    AltitudeList = np.linspace(0,90,Steps) #List of derotator angles
-
-    plt.figure()
-    plt.title("Altitude vs IP")
-    plt.xlabel("Altitude")
-    plt.ylabel("Instrumental polarization(%)")
-
-    plt.xlim(left=0,right=90)
-    plt.ylim(bottom=0,top=5)
-    plt.xticks(np.arange(0,90,step=10))
-    plt.yticks(np.arange(0,5,step=0.5))   
-    
-    plt.grid() 
-
-    for Model in ModelList:
-        I_Out,Q_Out,U_Out = Model.RunIP_Measurement(Steps)
-        IP = 100*np.sqrt(Q_Out**2 + U_Out**2) / I_Out     
-        plt.plot(AltitudeList,IP, label=Model.Name)
-
-    plt.legend()
-    
-    if(PlotStokes):
-        plt.figure()
-
-        plt.title("SCExAO Stokes Q and U over altitude")
-        plt.xlabel("Altitude")
-        plt.ylabel("Parameter value")
-    
-        plt.xlim(left=0,right=90)
-        plt.ylim(bottom=-0.1,top=0.1)
-        plt.xticks(np.arange(0,90,step=10))
-        plt.yticks(np.arange(-0.1,0.1,step=0.02))   
-        
-        plt.grid() 
-    
-        #print(Q_Out)
-        plt.plot(AltitudeList,Q_Out, label=Model.Name+"_Q")
-        plt.plot(AltitudeList,U_Out, label=Model.Name+"_U")
-    
-        plt.legend()
-    
-    
 #--/--Methods--/--#
 
 #-----Main-----#
 
 #Model using IRDIS parameter values
-Steps = 100
 BB_Y = MatrixModel("BB_Y",-0.00021,184.2,-0.6132,-0.00094,126.1,0.50007,0.9802,-1.542,0.0236,171.9)
 BB_J = MatrixModel("BB_J",-0.000433,177.5,-0.6132,-0.008304,156.1,0.50007,0.9895,-1.542,0.0167,173.4)
 BB_H = MatrixModel("BB_H",-0.000297,170.7,-0.6132,-0.002260,99.32,0.50007,0.9955,-1.542,0.01293,175)
@@ -343,7 +225,4 @@ BB_H_a = MatrixModel("BB_H",-0.000297,170.7,-0.6132,-0.002260,99.32,0.50007,0.99
 IdealModel = MatrixModel("Ideal",0,180,0,0,180,0,1,0,0,180,45)
 
 ModelList = [BB_Y,BB_J,BB_H,BB_K]
-#PlotEfficiencyDiagram(ModelList,Steps)
-#PlotIpDiagram(ModelList,Steps,True)
-#plt.show()
 #--/--Main--/--#
