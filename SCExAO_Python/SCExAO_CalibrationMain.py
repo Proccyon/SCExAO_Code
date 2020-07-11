@@ -39,12 +39,10 @@ class SCExAO_Calibration():
             then image is discarded. TimeDifference is time between image taken and last Hwp/imr change.
         HwpTargetList: List of half-wave plate angle combinations with which to do the double difference
         ColorList: List of colors with which to plot stokes parameters
-        PolParamValueArray_FileName: Name of text file where PolParamValueArray is stored with pickle
-        PolImrArray_FileName: Name of text file where PolImrAray is stored with pickle
-    
+
     local variables:
         PolImageList: List of all polarized calibration images. Has Dimensions (325,22,201,201) --> (ImageNumber,wavelength,X,Y)
-        PolLambdaList: List of used wavelengths per image. Has Dimensions (325,22) --> (ImageNumber,Wavelength)
+        WavelengthList: List of used wavelengths per image. Has Dimensions (325,22) --> (ImageNumber,Wavelength)
             Since it is the same for each image can be changed to Dimension (22) --> (Wavelength)
         PolTimeList: List of times at which polarized images are taken. Times are stored as timedelta's
             Has Dimensions (340) --> (ImageNumber)
@@ -79,10 +77,6 @@ class SCExAO_Calibration():
 
     ColorList = ["blue","lightblue","red","orange"]
 
-    PolParamValueArray_FileName = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Python/PickleFiles/PicklePolParamValueArray.txt"
-    PolImrArray_FileName = "C:/Users/Gebruiker/Desktop/BRP/SCExAO_Python/PickleFiles/PicklePolImrArray.txt"
-    
-    
     def __init__(self):
         pass
 
@@ -97,13 +91,13 @@ class SCExAO_Calibration():
         '''
 
         print("Reading files...")
-        self.ImageList,self.LambdaList,self.TimeList = ReadCalibrationFiles(PolFileList)
+        self.ImageList,self.WavelengthList,self.TimeList = ReadCalibrationFiles(PolFileList)
         self.RotationTimeList,self.RotationImrList,self.RotationHwpList = ReadRotationFile(RotationFile)
 
         print("Finding Imr and Hwp angles of calibration images...")
         self.ImrList,self.HwpList,self.BadImageList = self.GetRotations(self.TimeList)
         self.ImageList = self.ImageList[self.BadImageList==False]
-        self.LambdaList = self.LambdaList[self.BadImageList==False]
+        self.WavelengthList = self.WavelengthList[self.BadImageList==False]
 
         print("Splitting calibration images...")
         self.ApertureListL,self.ApertureListR = self.SplitCalibrationImages(self.ImageList)
@@ -271,11 +265,11 @@ def ReadCalibrationFiles(FileList):
 
     Output:
         ImageList: List of calibration images. Has Dimensions (325,22,201,201) --> (ImageNumber,wavelength,X,Y)
-        LambdaList: List of used wavelengths per image. Has Dimensions (325,22) --> (ImageNumber,Wavelength)
+        WavelengthList: List of used wavelengths per image. Has Dimensions (325,22) --> (ImageNumber,Wavelength)
         TimeList: List of times at which polarized images are taken. Times are stored as timedelta's
             Has Dimensions (340) --> (ImageNumber)
     '''
-    LambdaList = []
+
     ImageList = []
     TimeList = []
     for File in FileList:
@@ -285,8 +279,7 @@ def ReadCalibrationFiles(FileList):
         Image = File[1].data
         ImageList.append(Image)
 
-        Lambda = Header['lam_min']*np.exp(np.arange(Image.shape[0])*Header['dloglam']) #This gets the wavelength...somehow
-        LambdaList.append(Lambda)
+        WavelengthList = Header['lam_min']*np.exp(np.arange(Image.shape[0])*Header['dloglam']) #This gets the wavelength...somehow
 
         Days = float(Header["UTC-Date"][-2:])
         TimeRow = Header["UTC-Time"].split(":")
@@ -294,7 +287,7 @@ def ReadCalibrationFiles(FileList):
         #Converts time to the timedelta data type
         TimeList.append(timedelta(hours=float(TimeRow[0]),minutes=float(TimeRow[1]),seconds=float(TimeRow[2]),days=Days))
     
-    return np.array(ImageList),np.array(LambdaList),np.array(TimeList)
+    return np.array(ImageList),np.array(WavelengthList),np.array(TimeList)
 
 def ReadRotationFile(RotationFile):
     '''

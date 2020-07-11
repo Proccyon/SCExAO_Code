@@ -31,7 +31,7 @@ class SCExAO_Fitting:
     def __init__(self,CalibrationObject_Pol):
         self.CalibrationObject_Pol = CalibrationObject_Pol
         
-        self.WavelengthList = CalibrationObject_Pol.LambdaList[0]
+        self.WavelengthList = CalibrationObject_Pol.WavelengthList
         
         PolParamValueArray = CalibrationObject_Pol.ParamValueArray
         PolParamValueArray = np.swapaxes(PolParamValueArray,0,3)
@@ -42,6 +42,8 @@ class SCExAO_Fitting:
         self.PolDerList = CalibrationObject_Pol.ImrArray[0]
 
         
+    #-------------------------#
+
     def DoCompleteFit(self,SaveNumber):
  
         '''
@@ -96,8 +98,13 @@ class SCExAO_Fitting:
 
         DoAllWavelengthFit(SaveNumber,self.Prefix,CreateFitParametersPath,self.WavelengthList,GuessParameterList,self.PolDerList,self.PolParamValueArray,True,False,Bounds,DoFitList,True,OptimizeMethod)
 
+    #-------------------------#
 
-    def PlotModelParameter(self,ParameterList,SavePlot,SaveNumber=1,SaveParameterName="",BadIndex=[],ParameterName="",Unit="",Title="",ymin=None,ymax=None,NewFigure=True,DataColor="black",MarkerStyle="o",ScatterSize=20,DataLabel=""):
+    def CreateModelParameterPlotPath(self,SaveNumber,ModelParameterName):
+        return "{}Calibration{}/ModelParameterPlots/{}Plot{}.png".format(self.Prefix,SaveNumber,ModelParameterName,SaveNumber)
+
+
+    def PlotModelParameter(self,ParameterList,SaveNumber=1,SaveParameterName="",BadIndex=[],ParameterName="",Unit="",Title="",ymin=None,ymax=None,NewFigure=True,DataColor="black",MarkerStyle="o",ScatterSize=20,DataLabel="",AutoSave=True):
         
         '''
         Summary:
@@ -143,50 +150,79 @@ class SCExAO_Fitting:
 
         plt.scatter(np.delete(self.WavelengthList,BadIndex),np.delete(ParameterList,BadIndex),color=DataColor,s=ScatterSize,zorder=100,label=DataLabel,alpha=1,marker=MarkerStyle,linewidths=1)
         if(len(BadIndex) > 0):
-            plt.scatter(self.WavelengthList[BadIndex],ParameterList[BadIndex],color="black",s=ScatterSize,zorder=100,label="Outliers",alpha=1,marker=MarkerStyle,linewidths=1)
+            plt.scatter(self.WavelengthList[BadIndex],ParameterList[BadIndex],color="red",s=ScatterSize,zorder=100,label="Outliers",alpha=1,marker=MarkerStyle,linewidths=1)
 
         plt.grid(linestyle="--")
-        if(DataLabel != ""):
+        if(DataLabel != "" or len(BadIndex) > 0):
             legend = plt.legend(fontsize=7)
             legend.set_zorder(200)
 
-        if(SavePlot):
-            plt.savefig(CreateModelPlotPath(self.Prefix,SaveNumber,SaveParameterName))
+        if(AutoSave):
+            SavePath = self.CreateModelParameterPlotPath(SaveNumber,SaveParameterName)
+            plt.savefig(SavePath)
 
-    def PlotAllModelParameters(self,SaveNumber,SavePlots=True):
+
+    def PlotAllModelParameters(self,SaveNumber,AutoSave=True):
 
         FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
         
-        self.PlotModelParameter(FitParameters[0],SavePlots,SaveNumber,"R_Hwp",ParameterName="$\Delta_{Hwp}$",Unit="($^{\circ}$)",Title="Fitted Half-wave plate retardance over wavelength",ymin=165,ymax=185)
-        self.PlotModelParameter(FitParameters[1],SavePlots,SaveNumber,"Delta_Hwp",ParameterName="$\delta_{Hwp}$",Unit="($^{\circ}$)",Title="Fitted Half-wave plate offset over wavelength")
-        self.PlotModelParameter(FitParameters[2],SavePlots,SaveNumber,"R_Der",ParameterName="$\Delta_{der}$",Unit="($^{\circ}$)",Title="Fitted derotator retardance over wavelength",ymin=45,ymax=260)
+        self.PlotModelParameter(FitParameters[0],AutoSave,SaveNumber,"R_Hwp",ParameterName="$\Delta_{Hwp}$",Unit="($^{\circ}$)",Title="Fitted Half-wave plate retardance over wavelength",ymin=165,ymax=185)
+        self.PlotModelParameter(FitParameters[1],AutoSave,SaveNumber,"Delta_Hwp",ParameterName="$\delta_{Hwp}$",Unit="($^{\circ}$)",Title="Fitted Half-wave plate offset over wavelength")
+        self.PlotModelParameter(FitParameters[2],AutoSave,SaveNumber,"R_Der",ParameterName="$\Delta_{der}$",Unit="($^{\circ}$)",Title="Fitted derotator retardance over wavelength",ymin=45,ymax=260)
 
-        self.PlotModelParameter(FitParameters[3],SavePlots,SaveNumber,"Delta_Der",ParameterName="$\delta_{der}$",Unit="($^{\circ}$)",Title="Fitted derotator offset over wavelength")
+        self.PlotModelParameter(FitParameters[3],AutoSave,SaveNumber,"Delta_Der",ParameterName="$\delta_{der}$",Unit="($^{\circ}$)",Title="Fitted derotator offset over wavelength")
         Delta_Der_Average = np.average(FitParameters[3])
         plt.axhline(y=Delta_Der_Average,linestyle="--",color="blue",label="Average $\delta_{der}$")
         plt.legend(fontsize=8)
 
-        self.PlotModelParameter(FitParameters[4],SavePlots,SaveNumber,"d",ParameterName="$\epsilon_{cal}$",Unit="",Title="Fitted polarizer diattenuation over wavelength")
+        self.PlotModelParameter(FitParameters[4],AutoSave,SaveNumber,"d",ParameterName="$\epsilon_{cal}$",Unit="",Title="Fitted polarizer diattenuation over wavelength")
         
-        self.PlotModelParameter(FitParameters[5],SavePlots,SaveNumber,"Delta_Cal",ParameterName="$\delta_{Cal}$",Unit="($^{\circ}$)",Title="Fitted calibration polarizer offset over wavelength")
+        self.PlotModelParameter(FitParameters[5],AutoSave,SaveNumber,"Delta_Cal",ParameterName="$\delta_{Cal}$",Unit="($^{\circ}$)",Title="Fitted calibration polarizer offset over wavelength")
         Delta_Cal_Average = np.average(FitParameters[5][-9:])
         plt.axhline(y=Delta_Cal_Average,linestyle="--",color="blue",label="Average $\delta_{Cal}$")
         plt.legend(fontsize=8)
 
-        self.PlotModelParameter(FitParameters[6],SavePlots,SaveNumber,"ChiSquared",ParameterName="$\chi^2$",Unit="",Title="Sum of squared residuals of fits over wavelength")
+        self.PlotModelParameter(FitParameters[6],AutoSave,SaveNumber,"ChiSquared",ParameterName="$\chi^2$",Unit="",Title="Sum of squared residuals of fits over wavelength")
 
-    def PlotStokesParameters(self,SaveNumber):
+    #-------------------------#
+
+    #def CreateModelFitPlotPath(Prefix,SaveNumber,ModelParameter):
+    #return "{}Calibration{}/ModelParameterPlots/{}Plot{}Polyfit.png".format(Prefix,SaveNumber,ModelParameter,SaveNumber)
+
+    def CreateStokesPlotPath(self,SaveNumber,Wavelength):
+        return "{}Calibration{}/StokesFits/Fit{}/{}FitPlot{}.png".format(self.Prefix,SaveNumber,Wavelength,Wavelength,SaveNumber)
+
+
+    def PlotStokesParameters(self,SaveNumber,AutoSave=True):
 
         FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
         FittedModelList = FitParameters[7]
 
         for i in range(22):
+            
             self.CalibrationObject_Pol.PlotParamValues(i,FittedModelList[i],True)
-            plt.savefig(CreateFitPlotPath(self.Prefix,SaveNumber,int(self.WavelengthList[i])))
+            
+            if(AutoSave):
+                SavePath = self.CreateStokesPlotPath(SaveNumber,int(self.WavelengthList[i]))
+                plt.savefig(SavePath)
 
         plt.show()
 
-    def PlotEffDiagram(self,SaveNumber,WaveNumbers,Colors):
+    #-------------------------#
+
+    def CreateEffPlotPath(self,SaveNumber):
+        return "{}Calibration{}/PolarimetricEfficiency/EffPlot{}.png".format(self.Prefix,SaveNumber,SaveNumber)
+
+    
+    def CreateDiffEffPlotPath(self,SaveNumber):
+        return "{}Calibration{}/PolarimetricEfficiency/DiffEffPlot{}.png".format(self.Prefix,SaveNumber,SaveNumber)
+
+
+    def CreateMinEffPlotPath(self,SaveNumber):
+        return "{}Calibration{}/PolarimetricEfficiency/MinEffPlot{}.png".format(self.Prefix,SaveNumber,SaveNumber)
+
+
+    def PlotEffDiagram(self,SaveNumber,WaveNumbers,Colors,AutoSave=True):
         
         FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
         FittedModelList = FitParameters[7]
@@ -199,17 +235,53 @@ class SCExAO_Fitting:
                 self.CalibrationObject_Pol.PlotPolarimetricEfficiency(i,Colors[ColorIndex],FittedModelList[i])
                 ColorIndex+=1
 
+        if(AutoSave):
+            SavePath = self.CreateEffPlotPath(SaveNumber)
+            plt.savefig(SavePath)
 
-    def Plot_Min_Eff_Diagram(self,SaveNumber,SaveFile):
+        plt.legend(fontsize=8)
+
+
+    def PlotEffDiff(self,SaveNumber,WaveNumber,AutoSave=True):
+        FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
+        FittedModelList = FitParameters[7]
+
+        Model = FittedModelList[WaveNumber]
+
+        self.CalibrationObject_Pol.PlotPolarimetricEfficiencyDiff(WaveNumber,Model)
+
+        if(AutoSave):
+            SavePath = self.CreateDiffEffPlotPath(SaveNumber)
+            plt.savefig(SavePath)
+
+
+    def Plot_Min_Eff_Diagram(self,SaveNumber,AutoSave=True):
 
         FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
         FittedModelList = FitParameters[7]
 
-        SCExAO_Cal.PlotMinimumEfficiency(FittedModelList)
-        if(SaveFile):
-            plt.savefig(CreateMinEffPath(self.Prefix,SaveNumber))
+        self.CalibrationObject_Pol.PlotMinimumEfficiency(FittedModelList)
+        
+        if(AutoSave):
+            SavePath = self.CreateMinEffPlotPath(SaveNumber)
+            plt.savefig(SavePath)
 
-    def PlotAoLP_Diagram(self,SaveNumber,WaveNumbers,Colors):
+
+    #-------------------------#
+
+    def CreateAolpPlotPath(self,SaveNumber):
+        return "{}Calibration{}/AoLP/AoLP_Plot{}".format(self.Prefix,SaveNumber,SaveNumber)
+
+
+    def CreateDiffAolpPlotPath(self,SaveNumber):
+        return "{}Calibration{}/AoLP/Diff_AoLP_Plot{}".format(self.Prefix,SaveNumber,SaveNumber)
+
+
+    def CreateMaxAolpPlotPath(self,SaveNumber):
+        return "{}Calibration{}/AoLP/Max_AoLP_Plot{}".format(self.Prefix,SaveNumber,SaveNumber)
+
+
+    def PlotAoLP_Diagram(self,SaveNumber,WaveNumbers,Colors,AutoSave=True):
         
         FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
         FittedModelList = FitParameters[7]
@@ -220,16 +292,44 @@ class SCExAO_Fitting:
 
         plt.legend(fontsize=8)
         
-        plt.show()
+        if(AutoSave):
+            SavePath = self.CreateAolpPlotPath(SaveNumber)
+            plt.savefig(SavePath)
 
-    def Plot_Max_AOLP_Offset(self,SaveNumber):
+    def Plot_Diff_AoLP_Diagram(self,SaveNumber,WaveNumber,AutoSave=True):
+        
+        FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
+        FittedModelList = FitParameters[7]
+
+        plt.figure()
+        self.CalibrationObject_Pol.Plot_Diff_AOLP_Offset(WaveNumber,FittedModelList[WaveNumber])
+
+        if(AutoSave):
+            SavePath = self.CreateDiffAolpPlotPath(SaveNumber)
+            plt.savefig(SavePath)
+
+
+    def Plot_Max_AOLP_Offset(self,SaveNumber,AutoSave=True):
 
         FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
         FittedModelList = FitParameters[7]
 
         self.CalibrationObject_Pol.Plot_Max_AOLP_Offset(FittedModelList)
 
-    def Do_HWP_Retardance_Fit(self,SaveNumber,BadIndex,OptimizeMethod="Powell"):
+        if(AutoSave):
+            SavePath = self.CreateMaxAolpPlotPath(SaveNumber)
+            plt.savefig(SavePath)
+
+    #-------------------------#
+
+    def CreateHwpThicknessesPath(self,SaveNumber):
+        return "{}Calibration{}/SmoothenedParameters/HwpRetardance/HwpThicknesses{}.txt".format(self.Prefix,SaveNumber,SaveNumber)
+
+    def CreateHwpRetardanceFitPlotPath(self,SaveNumber):
+        return "{}Calibration{}/SmoothenedParameters/HwpRetardance/HwpRetardanceFitPlot{}.png".format(self.Prefix,SaveNumber,SaveNumber)
+
+
+    def Do_HWP_Retardance_Fit(self,SaveNumber,BadIndex,OptimizeMethod="Powell",AutoSave=True):
 
         FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
         R_Hwp_Measured = FitParameters[0]
@@ -274,7 +374,7 @@ class SCExAO_Fitting:
         frame1=fig1.add_axes((.13,.36,.77,.57))
         frame1.set_xticklabels([])
 
-        self.PlotModelParameter(R_Hwp_Measured,False,ParameterName="$\Delta_{Hwp}$",Unit="($^{\circ}$)",Title="Fit of quartz and $\mathrm{MgF_2}$ plates to measured HWP retardance",NewFigure=False,ymin=165,ymax=185)
+        self.PlotModelParameter(R_Hwp_Measured,False,BadIndex=BadIndex,ParameterName="$\Delta_{Hwp}$",Unit="($^{\circ}$)",Title="Fit of quartz and $\mathrm{MgF_2}$ plates to measured HWP retardance",NewFigure=False,ymin=165,ymax=185)
         plt.plot(WavelengthList_Wide,R_Hwp_Fit_Continuous,label="Fitted retardance")
 
         plt.xlim(xmin=np.amin(self.WavelengthList)-50,xmax=np.amax(self.WavelengthList)+50)
@@ -298,18 +398,29 @@ class SCExAO_Fitting:
 
         plt.grid(linestyle="--")
 
-        SavePath = CreateHwpRetardanceFitPlotPath(self.Prefix,SaveNumber)
-        plt.savefig(SavePath)
+        if(AutoSave):
+            SavePath = CreateHwpRetardanceFitPlotPath(self.Prefix,SaveNumber)
+            plt.savefig(SavePath)
 
 
-    def Do_Parameter_Polyfit(self,SaveNumber,ParameterList,FitDegree,ParameterName,Unit=r"($^\circ$)",BadIndex=[],yResMin=-10,yResMax=10):
+    #-------------------------#
+
+    def CreateModelFitPlotPath(self,SaveNumber,ParameterName):
+        return "{}Calibration{}/SmoothenedParameters/{}/{}Polyfit{}.png".format(self.Prefix,SaveNumber,ParameterName,ParameterName,SaveNumber)
+
+
+    def CreateSmoothenedParameterConstantsPath(self,SaveNumber,ParameterName):
+        return "{}Calibration{}/SmoothenedParameters/{}/{}Constants{}.txt".format(self.Prefix,SaveNumber,ParameterName,ParameterName,SaveNumber)
+
+
+    def Do_Parameter_Polyfit(self,SaveNumber,ParameterList,FitDegree,ParameterName,Unit=r"($^\circ$)",BadIndex=[],ymin=0,ymax=360,yResMin=-10,yResMax=10,AutoSave=True):
 
         NewWavelengthList = np.delete(self.WavelengthList,BadIndex)
         NewParameterList = np.delete(ParameterList,BadIndex)
 
         PolyfitCoefficients = np.polyfit(NewWavelengthList,NewParameterList,FitDegree)
 
-        SaveFile = open(CreateSmoothenedParameterConstantsPath(self.Prefix,SaveNumber,ParameterName),"w+")
+        SaveFile = open(self.CreateSmoothenedParameterConstantsPath(SaveNumber,ParameterName),"w+")
         SaveSmootheningConstants(SaveFile,PolyfitCoefficients)
 
         fig1 = plt.figure()
@@ -321,12 +432,13 @@ class SCExAO_Fitting:
 
         Title = "Polynomial fit(deg={}) on {}".format(FitDegree,ParameterName).replace("_"," ")
 
-        self.PlotModelParameter(NewParameterList,False,BadIndex=BadIndex,ParameterName=ParameterName,Unit=r"($^\circ$)",Title=Title)
+        self.PlotModelParameter(ParameterList,BadIndex=BadIndex,ParameterName=ParameterName,Unit=r"($^\circ$)",Title=Title,AutoSave=False,NewFigure=False)
    
         plt.plot(Wavelength_Wide,Parameter_Fit,label="Polynomial fit")
         plt.legend(fontsize=8)
 
         plt.xlim(xmin=np.amin(self.WavelengthList)-50,xmax=np.amax(self.WavelengthList)+50)
+        plt.ylim(ymin=ymin,ymax=ymax)
 
         frame2=fig1.add_axes((.13,.1,.77,.23))
 
@@ -344,13 +456,24 @@ class SCExAO_Fitting:
         plt.ylabel("Residuals"+Unit)
         plt.xlim(xmin=np.amin(self.WavelengthList)-50,xmax=np.amax(self.WavelengthList)+50)
 
-        #plt.savefig(CreateModelFitPlotPath(self.Prefix,SaveNumber,SaveParameterName))
+        if(AutoSave):
+            SavePath = self.CreateModelFitPlotPath(SaveNumber,ParameterName)
+            plt.savefig(SavePath)
 
-    def Do_Derotator_Retardance_Polyfit(self,SaveNumber):
+    def Do_Derotator_Retardance_Polyfit(self,SaveNumber,AutoSave=True):
         FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
         R_Der_List = FitParameters[2]
 
-        self.Do_Parameter_Polyfit(SaveNumber,R_Der_List,4,"Derotator_Retardance")
+        self.Do_Parameter_Polyfit(SaveNumber,R_Der_List,4,"Derotator_Retardance",BadIndex=[4],AutoSave=AutoSave)
+
+    def Do_Hwp_Offset_Polyfit(self,SaveNumber,AutoSave=True):
+        FitParameters = GetModelParameters(self.WavelengthList,SaveNumber,self.Prefix)
+        Hwp_Offset_List = FitParameters[1]
+
+        self.Do_Parameter_Polyfit(SaveNumber,Hwp_Offset_List,6,"Hwp_Offset",BadIndex=[0],AutoSave=AutoSave,ymin=-3,ymax=2)
+
+
+    #-------------------------#
 
 
 #--/--FittingClass--/--#
@@ -529,38 +652,9 @@ def ProcessLine(Line):
 
 #---PathFunctions---#
 
-def CreateFitPlotPath(Prefix,SaveNumber,Wavelength):
-    return "{}Calibration{}/ModelFits/Fit{}/{}FitPlot{}.png".format(Prefix,SaveNumber,Wavelength,Wavelength,SaveNumber)
-
-def CreateSingleEffPlotPath(Prefix,SaveNumber,Wavelength):
-    return "{}Calibration{}/ModelFits/Fit{}/{}SingleEffPlot{}.png".format(Prefix,SaveNumber,Wavelength,Wavelength,SaveNumber)
-
-def CreateSingleAolpPlotPath(Prefix,SaveNumber,Wavelength):
-    return "{}Calibration{}/ModelFits/Fit{}/{}SingleAolpPlot{}.png".format(Prefix,SaveNumber,Wavelength,Wavelength,SaveNumber)
-
-def CreateEffPlotPath(Prefix,SaveNumber):
-    return "{}Calibration{}/EffPlot{}.png".format(Prefix,SaveNumber,SaveNumber)
-
-def CreateMinEffPath(Prefix,SaveNumber):
-    return "{}Calibration{}/MinEffPlot{}.png".format(Prefix,SaveNumber,SaveNumber)
 
 def CreateFitParametersPath(Prefix,SaveNumber,Wavelength):
-    return "{}Calibration{}/ModelFits/Fit{}/{}FitParameters{}.txt".format(Prefix,SaveNumber,Wavelength,Wavelength,SaveNumber)
-
-def CreateHwpThicknessesPath(Prefix,SaveNumber):
-    return "{}Calibration{}/SmoothenedParameters/HwpRetardance/HwpThicknesses{}.txt".format(Prefix,SaveNumber,SaveNumber)
-
-def CreateHwpRetardanceFitPlotPath(Prefix,SaveNumber):
-    return "{}Calibration{}/SmoothenedParameters/HwpRetardance/HwpRetardanceFitPlot{}.png".format(Prefix,SaveNumber,SaveNumber)
-
-def CreateSmoothenedParameterConstantsPath(Prefix,SaveNumber,ParameterName):
-    return "{}Calibration{}/SmoothenedParameters/{}/{}Constants{}.txt".format(Prefix,SaveNumber,ParameterName,ParameterName,SaveNumber)
-
-def CreateModelPlotPath(Prefix,SaveNumber,ModelParameter):
-    return "{}Calibration{}/ModelParameterPlots/{}Plot{}.png".format(Prefix,SaveNumber,ModelParameter,SaveNumber)
-
-def CreateModelFitPlotPath(Prefix,SaveNumber,ModelParameter):
-    return "{}Calibration{}/ModelParameterPlots/{}Plot{}Polyfit.png".format(Prefix,SaveNumber,ModelParameter,SaveNumber)
+    return "{}Calibration{}/StokesFits/Fit{}/{}FitParameters{}.txt".format(Prefix,SaveNumber,Wavelength,Wavelength,SaveNumber)
 
 #-/-PathFunctions-/-#
 
@@ -606,7 +700,7 @@ def GetPolyfitY(x,Coefficients):
     
     return y
 
-def GetModelParameters(WavelengthList,CalNumber,Prefix):
+def GetModelParameters(WavelengthList,SaveNumber,Prefix):
 
     R_Hwp_List = []
     Delta_Hwp_List = []
@@ -619,7 +713,7 @@ def GetModelParameters(WavelengthList,CalNumber,Prefix):
 
     for i in range(len(WavelengthList)):
         Wavelength = int(WavelengthList[i])
-        SaveFile = open(CreateFitParametersPath(Prefix,CalNumber,Wavelength),"r+")
+        SaveFile = open(CreateFitParametersPath(Prefix,SaveNumber,Wavelength),"r+")
         LineArray = SaveFile.readlines()
         
         R_Hwp = float(ProcessLine(LineArray[1]))
@@ -660,17 +754,27 @@ if __name__ == '__main__':
 
     #SCExAO_Fitting_Object.DoCompleteFit(1)
 
-    SCExAO_Fitting_Object.PlotAllModelParameters(1)
+    #SCExAO_Fitting_Object.PlotAllModelParameters(1)
 
     #SCExAO_Fitting_Object.PlotStokesParameters(1)
 
-    #SCExAO_Fitting_Object.PlotAoLP_Diagram(1,[1,2,3,4],["red","blue","cyan","green"])
+    #SCExAO_Fitting_Object.PlotEffDiagram(1,[4,9,14,19],["red","green","blue","cyan"])
+
+    #SCExAO_Fitting_Object.PlotEffDiff(1,9)
+
+    #SCExAO_Fitting_Object.Plot_Min_Eff_Diagram(1)
+
+    #SCExAO_Fitting_Object.PlotAoLP_Diagram(1,[3,7,9,19],["red","green","blue","cyan"])
     
+    #SCExAO_Fitting_Object.Plot_Diff_AoLP_Diagram(1,8)
+
     #SCExAO_Fitting_Object.Plot_Max_AOLP_Offset(1)
     
-    #SCExAO_Fitting_Object.Do_HWP_Retardance_Fit(1,[4,5],"Powell")
+    #SCExAO_Fitting_Object.Do_HWP_Retardance_Fit(1,[0,1,2,3,4],"Powell")
 
     #SCExAO_Fitting_Object.Do_Derotator_Retardance_Polyfit(1)
+
+    SCExAO_Fitting_Object.Do_Hwp_Offset_Polyfit(1)
 
     plt.show()
 
