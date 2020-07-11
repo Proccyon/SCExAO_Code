@@ -87,7 +87,7 @@ class SCExAO_Calibration():
         pass
 
         
-    def RunCalibration(self,PolFileList,RotationFile):
+    def RunCalibration(self,FileList,RotationFile):
         '''
         Summary:     
             Runs the whole calibration process. Combines all the methods found below.
@@ -97,21 +97,21 @@ class SCExAO_Calibration():
         '''
 
         print("Reading files...")
-        self.PolImageList,self.PolLambdaList,self.PolTimeList = ReadCalibrationFiles(PolFileList)
+        self.ImageList,self.LambdaList,self.TimeList = ReadCalibrationFiles(PolFileList)
         self.RotationTimeList,self.RotationImrList,self.RotationHwpList = ReadRotationFile(RotationFile)
 
         print("Finding Imr and Hwp angles of calibration images...")
-        self.PolImrList,self.PolHwpList,self.PolBadImageList = self.GetRotations(self.PolTimeList)
-        self.PolImageList = self.PolImageList[self.PolBadImageList==False]
-        self.PolLambdaList = self.PolLambdaList[self.PolBadImageList==False]
+        self.ImrList,self.HwpList,self.BadImageList = self.GetRotations(self.TimeList)
+        self.ImageList = self.ImageList[self.BadImageList==False]
+        self.LambdaList = self.LambdaList[self.BadImageList==False]
 
         print("Splitting calibration images...")
-        self.PolApertureListL,self.PolApertureListR = self.SplitCalibrationImages(self.PolImageList)
+        self.ApertureListL,self.ApertureListR = self.SplitCalibrationImages(self.ImageList)
 
         print("Creating double difference images...")
-        self.PolDDArray,self.PolDSArray,self.PolImrArray = self.CreateHwpDoubleDifferenceImages(self.PolHwpList,self.PolImrList,self.PolApertureListL,self.PolApertureListR)
+        self.DDArray,self.DSArray,self.ImrArray = self.CreateHwpDoubleDifferenceImages(self.HwpList,self.ImrList,self.ApertureListL,self.ApertureListR)
 
-        self.PolParamValueArray = self.PolDDArray/self.PolDSArray
+        self.ParamValueArray = self.DDArray/self.DSArray
         
 
     def SplitCalibrationImages(self,ImageList):
@@ -415,11 +415,11 @@ if __name__ == '__main__':
             PolFile = fits.open(PolPath)
             PolFileList.append(PolFile)
 
-        SCExAO_CalibrationObject = SCExAO_Calibration()
-        SCExAO_CalibrationObject.RunCalibration(PolFileList,RotationFile)
+        SCExAO_CalibrationObject_Pol = SCExAO_Calibration()
+        SCExAO_CalibrationObject_Pol.RunCalibration(PolFileList,RotationFile)
         
         #Saves the calibration results in a text file using pickle module.
-        pickle.dump(SCExAO_CalibrationObject,open(PickleSavePath,"wb"))
+        pickle.dump(SCExAO_CalibrationObject_Pol,open(PickleSavePath,"wb"))
 
 #--/--Main--/--#
 

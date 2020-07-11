@@ -23,7 +23,7 @@ def PlotParamValues(self,LambdaNumber,Model=SCExAO_Model.BB_H,PlotModelCurve=Fal
 
     frame1=fig1.add_axes((.13,.36,.77,.57))
 
-    Lambda = self.PolLambdaList[0][LambdaNumber]
+    Lambda = self.LambdaList[0][LambdaNumber]
 
     plt.title("Stokes parameters against derotator angle (polarized source)($\lambda$="+str(int(Lambda))+"nm)") 
     plt.ylabel("Normalized Stokes parameter (%)")
@@ -48,9 +48,9 @@ def PlotParamValues(self,LambdaNumber,Model=SCExAO_Model.BB_H,PlotModelCurve=Fal
         HwpMinTarget = self.HwpTargetList[i][1]
 
         #Loop through apertures
-        for j in range(len(self.PolParamValueArray[0][0])):
-            ParamValueList = 100*self.PolParamValueArray[i,:,j,LambdaNumber]
-            plt.scatter(self.PolImrArray[i],ParamValueList,zorder=100,color=self.ColorList[i],s=18,edgecolors="black")
+        for j in range(len(self.ParamValueArray[0][0])):
+            ParamValueList = 100*self.ParamValueArray[i,:,j,LambdaNumber]
+            plt.scatter(self.ImrArray[i],ParamValueList,zorder=100,color=self.ColorList[i],s=18,edgecolors="black")
 
         if(PlotModelCurve):
             #Plots model curve    
@@ -66,7 +66,7 @@ def PlotParamValues(self,LambdaNumber,Model=SCExAO_Model.BB_H,PlotModelCurve=Fal
     #---ResidualsPlot---#
     if(PlotModelCurve):
 
-        ResidualModelParmValueArray = 100*Model.FindParameterArray(self.PolImrArray[0]*np.pi/180,S_In,0,self.HwpTargetList,True,False)
+        ResidualModelParmValueArray = 100*Model.FindParameterArray(self.ImrArray[0]*np.pi/180,S_In,0,self.HwpTargetList,True,False)
         frame2=fig1.add_axes((.13,.1,.77,.23))
 
         plt.xticks(np.arange(45,135,7.5))
@@ -83,10 +83,10 @@ def PlotParamValues(self,LambdaNumber,Model=SCExAO_Model.BB_H,PlotModelCurve=Fal
         
         for i in range(len(self.HwpTargetList)):
             #Loop through apertures
-            for j in range(len(self.PolParamValueArray[0][0])):
-                ParamValueList = 100*self.PolParamValueArray[i,:,j,LambdaNumber]
+            for j in range(len(self.ParamValueArray[0][0])):
+                ParamValueList = 100*self.ParamValueArray[i,:,j,LambdaNumber]
                 ResidualValueList = ParamValueList - ResidualModelParmValueArray[i]
-                plt.scatter(self.PolImrArray[i],ResidualValueList,zorder=100,color=self.ColorList[i],s=13,edgecolors="black",linewidth=1)
+                plt.scatter(self.ImrArray[i],ResidualValueList,zorder=100,color=self.ColorList[i],s=13,edgecolors="black",linewidth=1)
 
         plt.grid(linestyle="--")
 
@@ -95,7 +95,7 @@ def PlotParamValues(self,LambdaNumber,Model=SCExAO_Model.BB_H,PlotModelCurve=Fal
     
 def PlotPolarimetricEfficiency(self,LambdaNumber,Color,Model):
 
-    Lambda = self.PolLambdaList[0][LambdaNumber]
+    Lambda = self.LambdaList[0][LambdaNumber]
 
     #plt.title("Polarimetric efficiency over derotator angle for several wavelengths")   
     plt.title("Polarimetric efficiency over derotator angle for $\lambda=$"+str(int(Lambda))+"nm")  
@@ -125,11 +125,11 @@ def PlotPolarimetricEfficiency(self,LambdaNumber,Color,Model):
     #plt.title("Polarimetric efficiency calculated using different Stokes parameter combinations")
 
     for ApertureNumber in range(8):
-        PolDegree1 = np.sqrt(self.PolParamValueArray[0,:,ApertureNumber,LambdaNumber]**2+self.PolParamValueArray[2,:,ApertureNumber,LambdaNumber]**2)
-        PolDegree2 = np.sqrt(self.PolParamValueArray[1,:,ApertureNumber,LambdaNumber]**2+self.PolParamValueArray[3,:,ApertureNumber,LambdaNumber]**2)
+        PolDegree1 = np.sqrt(self.ParamValueArray[0,:,ApertureNumber,LambdaNumber]**2+self.ParamValueArray[2,:,ApertureNumber,LambdaNumber]**2)
+        PolDegree2 = np.sqrt(self.ParamValueArray[1,:,ApertureNumber,LambdaNumber]**2+self.ParamValueArray[3,:,ApertureNumber,LambdaNumber]**2)
         PolDegree = 0.5*(PolDegree1+PolDegree2)
 
-        plt.scatter(self.PolImrArray[0],100*PolDegree,zorder=100,s=18,color=Color,edgecolors="black")
+        plt.scatter(self.ImrArray[0],100*PolDegree,zorder=100,s=18,color=Color,edgecolors="black")
 
         #-----REMOVE_THIS-----#
         #plt.scatter(self.PolImrArray[0],100*PolDegree1,zorder=100,s=18,edgecolors="black",color="red")
@@ -154,14 +154,14 @@ def PlotMinimumEfficiency(self,ModelList):
         MinPolDegree = np.amin(Model_PolDegree)
         MinPolDegreeList.append(MinPolDegree)
 
-    plt.scatter(self.PolLambdaList[0],np.array(MinPolDegreeList)*100,color="black",zorder=10)
+    plt.scatter(self.LambdaList[0],np.array(MinPolDegreeList)*100,color="black",zorder=10)
     print(np.array(MinPolDegreeList)*100)
 
     plt.title("Minimum polarimetric efficiency over wavelength")
     plt.xlabel(r"$\lambda$(nm)")
     plt.ylabel("Minimum polarimetric efficiency(%)")
 
-    plt.xlim(xmin=np.amin(self.PolLambdaList[0])-50,xmax=np.amax(self.PolLambdaList[0])+50)
+    plt.xlim(xmin=np.amin(self.LambdaList[0])-50,xmax=np.amax(self.LambdaList[0])+50)
     plt.ylim(ymin=0,ymax=100)
     plt.yticks(np.arange(0,110,10))
 
@@ -169,7 +169,7 @@ def PlotMinimumEfficiency(self,ModelList):
 
 def Plot_AOLP_Offset(self,LambdaNumber,Model,Color="black"):
 
-    Lambda = self.PolLambdaList[0][LambdaNumber]
+    Lambda = self.LambdaList[0][LambdaNumber]
 
     #plt.title("AOLP offset over derotator angle for several wavelengths")
     plt.title("AOLP offset over derotator angle for $\lambda$="+str(int(Lambda))+"nm")              
@@ -191,7 +191,7 @@ def Plot_AOLP_Offset(self,LambdaNumber,Model,Color="black"):
     ModelParmValueArray = Model.FindParameterArray(ModelDerList,S_In,0,self.HwpTargetList,True,False)
 
     IdealParmValueArrayContinuous = IdealModel.FindParameterArray(ModelDerList,S_In,0,self.HwpTargetList,True,False)
-    IdealParmValueArrayDiscrete = IdealModel.FindParameterArray(self.PolImrArray[0]*np.pi/180,S_In,0,self.HwpTargetList,True,False)
+    IdealParmValueArrayDiscrete = IdealModel.FindParameterArray(self.ImrArray[0]*np.pi/180,S_In,0,self.HwpTargetList,True,False)
 
     ModelAOLP_List = []
     ModelAOLP_List2 = []
@@ -222,8 +222,8 @@ def Plot_AOLP_Offset(self,LambdaNumber,Model,Color="black"):
     for ApertureNumber in range(8):
         MeasuredAOLP_List = []
         #MeasuredAOLP_List2 = []
-        for i in range(len(self.PolImrArray[0])): 
-            MeasuredAOLP = CalculateAOLP(self.PolParamValueArray[0,i,ApertureNumber,LambdaNumber],self.PolParamValueArray[2,i,ApertureNumber,LambdaNumber])
+        for i in range(len(self.ImrArray[0])): 
+            MeasuredAOLP = CalculateAOLP(self.ParamValueArray[0,i,ApertureNumber,LambdaNumber],self.ParamValueArray[2,i,ApertureNumber,LambdaNumber])
             IdealModelAOLP_Discrete = CalculateAOLP(IdealParmValueArrayDiscrete[0][i],IdealParmValueArrayDiscrete[2][i])
             MeasuredAOLP_List.append(ModulateAngle(MeasuredAOLP-IdealModelAOLP_Discrete))
 
@@ -233,7 +233,7 @@ def Plot_AOLP_Offset(self,LambdaNumber,Model,Color="black"):
 
         #MeasuredAOLP_List = np.array(MeasuredAOLP_List)-np.array(IdealModelAOLP_Discrete_List)
 
-        plt.scatter(self.PolImrArray[0],MeasuredAOLP_List,zorder=100,s=18,edgecolors="black",color=Color)
+        plt.scatter(self.ImrArray[0],MeasuredAOLP_List,zorder=100,s=18,edgecolors="black",color=Color)
 
         #plt.scatter(self.PolImrArray[0],MeasuredAOLP_List,zorder=100,s=18,edgecolors="black",color="red")
         #plt.scatter(self.PolImrArray[0],MeasuredAOLP_List2,zorder=100,s=18,edgecolors="black",color="blue")
@@ -248,7 +248,7 @@ def Plot_Max_AOLP_Offset(self,ModelList):
     plt.xlabel(r"$\lambda$(nm)")
     plt.ylabel("Maximum AOLP offset($^\circ$)")
 
-    plt.xlim(xmin=np.amin(self.PolLambdaList[0])-50,xmax=np.amax(self.PolLambdaList[0])+50)
+    plt.xlim(xmin=np.amin(self.LambdaList[0])-50,xmax=np.amax(self.LambdaList[0])+50)
     plt.ylim(bottom=0,top=95)
     plt.yticks(np.arange(0,100,10))
     #plt.xticks(np.arange())
@@ -273,7 +273,7 @@ def Plot_Max_AOLP_Offset(self,ModelList):
 
         MaxAOLP_List.append(np.amax(np.absolute(ModelAOLP_List)))
 
-    plt.scatter(self.PolLambdaList[0],MaxAOLP_List,color="black",s=20,zorder=10)
+    plt.scatter(self.LambdaList[0],MaxAOLP_List,color="black",s=20,zorder=10)
 
     plt.grid(linestyle="--")
 
@@ -293,20 +293,13 @@ def PlotApertures(self,ImageNumber,LambdaNumber):
         plt.text(ApertureCoord[0]-self.RollVector[0]-3,ApertureCoord[1]-self.RollVector[1]+3,i,fontsize=12,color="black")
 
     plt.imshow(self.PolImageList[LambdaNumber,ImageNumber],vmin=400,vmax=1800,cmap="gist_gray")
-    print(self.PolImrList[0])
-    print(self.PolHwpList[0])
+    
     plt.xlabel("x(pixels)")
     plt.ylabel("y(pixles)")
     cbar = plt.colorbar()
     cbar.set_label('Counts')
 
     plt.show()
-
-    #plt.imshow(LeftApertures)
-    #plt.figure()
-    #plt.imshow(self.ApertureImage)
-
-    #plt.show()
 
 
 def CreateApertureContour(x0,y0,Lx,Ly,Angle):
